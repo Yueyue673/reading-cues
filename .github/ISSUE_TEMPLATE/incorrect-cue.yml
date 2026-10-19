@@ -1,0 +1,28 @@
+name: 误标或漏标
+description: 用一个原创短句帮助改进规则，不需要个人健康信息。
+title: '[词库] '
+body:
+  - type: textarea
+    id: sentence
+    attributes:
+      label: 能重现问题的短句
+      description: 请改写私人内容；不要粘贴邮件、账号信息或受限文章。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际提示了什么
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你希望怎样提示，或跳过什么
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 插件版本、浏览器和系统
+      placeholder: 例如 v0.1.0、Chrome、Windows
