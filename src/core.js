@@ -1,9 +1,12 @@
 /* Pure matching and settings logic. No DOM, network or browser extension APIs. */
 (() => {
   'use strict';
-  const CATEGORIES = ['restriction', 'condition', 'contrast'];
+  const CATEGORY_LABELS = Object.freeze({restriction:'否定、范围与不确定性', condition:'条件与例外',
+    contrast:'转折与让步', cause:'因果与推论', addition:'递进与并列', sequence:'顺序与时间',
+    explanation:'解释、举例与归纳', quantity:'数值、日期与时长', concept:'完整概念'});
+  const CATEGORIES = Object.keys(CATEGORY_LABELS);
   const DEFAULTS = Object.freeze({
-    enabled: true, style: 'background', maxGroups: 2,
+    enabled: true, style: 'background', maxGroups: 0,
     categories: Object.freeze([...CATEGORIES]), personal: Object.freeze([]), ignored: Object.freeze([])
   });
   const LIMITS = Object.freeze({ terms: 300, termLength: 40, importBytes: 100000, paragraph: 8000 });
@@ -25,7 +28,7 @@
     return {
       enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
       style: ['background', 'underline'].includes(raw.style) ? raw.style : DEFAULTS.style,
-      maxGroups: [1, 2, 3].includes(raw.maxGroups) ? raw.maxGroups : DEFAULTS.maxGroups,
+      maxGroups: [0, 1, 2, 3, 5, 8].includes(raw.maxGroups) ? raw.maxGroups : DEFAULTS.maxGroups,
       categories: Array.isArray(raw.categories) ? CATEGORIES.filter(x => raw.categories.includes(x)) : [...CATEGORIES],
       personal: terms(raw.personal), ignored: terms(raw.ignored)
     };
@@ -58,6 +61,18 @@
     } catch { return null; }
   }
 
+  function isSiteEnabled(input, settings = {}, excludedSites = [], topInput = input) {
+    const pattern = sitePattern(input), top = sitePattern(topInput);
+    return !!pattern && normalizeSettings(settings).enabled &&
+      !excludedSites.includes(pattern) && !(top && excludedSites.includes(top));
+  }
+
+  function paragraphBudget(text, maxGroups = DEFAULTS.maxGroups) {
+    const length = text.replace(/\s/gu, '').length;
+    return {groups: maxGroups || Math.min(16, Math.max(2, Math.ceil(length / 100) * 2)),
+      characters: Math.max(12, Math.floor(length * .22))};
+  }
+
   function occurrences(text, form) {
     const spans = [];
     for (let i = text.indexOf(form); i !== -1; i = text.indexOf(form, i + form.length)) {
@@ -74,7 +89,7 @@
     const ids = new Set();
     for (const e of data.entries) {
       if (!e.id || ids.has(e.id) || !CATEGORIES.includes(e.category) ||
-          !['literal', 'pair'].includes(e.kind) || !Number.isFinite(e.priority) ||
+          !['literal', 'pair', 'pattern'].includes(e.kind) || !Number.isFinite(e.priority) ||
           !e.source || !Array.isArray(e.examples?.positive) || !e.examples.positive.length ||
           !Array.isArray(e.examples?.negative) || !e.examples.negative.length) {
         throw new Error(`Invalid entry: ${e.id}`);
@@ -83,6 +98,12 @@
       if (e.kind === 'literal' && (!e.forms?.length || e.forms.some(x => !safeTerm(x)))) throw new Error(`Invalid forms: ${e.id}`);
       if (e.kind === 'pair' && (!e.pairs?.length || e.pairs.some(x => !Array.isArray(x) || x.length !== 2 || x.some(y => typeof y !== 'string' || !y.length)) ||
           !Number.isInteger(e.maxGap) || e.maxGap < 1 || e.maxGap > 120)) throw new Error(`Invalid pairs: ${e.id}`);
+      if (e.kind === 'pattern') {
+        // Patterns are shipped code-reviewed rules, never accepted from personal imports.
+        if (typeof e.pattern !== 'string' || e.pattern.length > 500) throw new Error(`Invalid pattern: ${e.id}`);
+        const expression = new RegExp(e.pattern, 'gu');
+        if (expression.test('')) throw new Error(`Empty pattern: ${e.id}`);
+      }
     }
     return data;
   }
@@ -105,6 +126,7 @@
     for (const e of entries.filter(x => x.kind === 'literal')) for (const form of e.forms) add(form, e);
     for (const form of settings.personal) add(form, {id: `personal:${form}`, category: 'personal', priority: 1000});
     const pairs = entries.filter(e => e.kind === 'pair');
+    const patterns = entries.filter(e => e.kind === 'pattern').map(e => ({...e, expression:new RegExp(e.pattern, 'gu')}));
 
     function match(text, {budget = true} = {}) {
       if (typeof text !== 'string' || !settings.enabled) return [];
@@ -114,7 +136,7 @@
       const candidates = [];
       const accept = candidate => {
         if (candidate.spans.some(span => ignored.some(x => intersects(span, x)))) return;
-        if (candidate.category !== 'personal' && candidate.spans.some(span => unsafe.some(x => intersects(span, x)))) return;
+        if (!candidate.allowUnsafe && candidate.category !== 'personal' && candidate.spans.some(span => unsafe.some(x => intersects(span, x)))) return;
         candidates.push(candidate);
       };
 
@@ -125,8 +147,10 @@
           for (const entry of branch.get(null) || []) {
             const span = {start, end: end + 1};
             const excluded = (entry.excludePhrases || []).some(form => occurrences(text, form).some(x => intersects(span, x)));
-            if (!excluded) accept({id: entry.id, category: entry.category, priority: entry.priority,
-              spans: [span], label: entry.label || entry.form});
+            const before = text[start - 1] || '', after = text[end + 1] || '';
+            const invalidBoundary = entry.boundary === 'word' && /[A-Za-z0-9_]/u.test(before + after);
+            if (!excluded && !invalidBoundary) accept({id: entry.id, category: entry.category, priority: entry.priority,
+              spans: [span], label: entry.label || entry.form, oncePerBlock:entry.oncePerBlock, allowUnsafe:entry.allowUnsafe});
           }
         }
       }
@@ -140,31 +164,49 @@
           for (const closer of closers) {
             const opener = openers.findLast(x => x.end <= closer.start && !used.has(x.start) &&
               closer.start - x.end <= entry.maxGap && !BREAK.test(text.slice(x.end, closer.start)));
-            if (!opener || (entry.rightExcludes || []).some(suffix => text.startsWith(right + suffix, closer.start))) continue;
+            if (!opener || (entry.rightExcludes || []).some(suffix => text.startsWith(right + suffix, closer.start)) ||
+              (entry.rightPrecludes || []).some(prefix => text.slice(0,closer.start).endsWith(prefix))) continue;
             used.add(opener.start);
             accept({id: entry.id, category: entry.category, priority: entry.priority + 20,
-              spans: [opener, closer], label: entry.label});
+              spans: [opener, closer], label: entry.label, allowUnsafe:entry.allowUnsafe});
           }
         }
       }
 
+      for (const entry of patterns) {
+        entry.expression.lastIndex = 0;
+        for (const found of text.matchAll(entry.expression)) {
+          const start = found.index, end = start + found[0].length;
+          if (/[\d.]/u.test(text[start - 1] || '') ||
+            (/[\d.]$/u.test(found[0]) && /[\d.]/u.test(text[end] || ''))) continue;
+          if ((entry.rightExcludes || []).some(suffix => text.startsWith(suffix, end))) continue;
+          accept({id:entry.id, category:entry.category, priority:entry.priority, spans:[{start,end}], label:entry.label});
+        }
+      }
+
       const resolved = [];
-      candidates.sort((a, b) => b.priority - a.priority || spanSize(b) - spanSize(a) || a.spans[0].start - b.spans[0].start);
+      candidates.sort((a, b) => Number(b.category === 'personal')-Number(a.category === 'personal') ||
+        b.spans.length-a.spans.length || spanSize(b)-spanSize(a) || b.priority-a.priority || a.spans[0].start-b.spans[0].start);
       for (const item of candidates) if (!resolved.some(x => overlaps(x, item))) resolved.push(item);
       if (!budget) return resolved.sort((a, b) => a.spans[0].start - b.spans[0].start);
-      // Six characters allow one short expression; longer passages have a 22% ceiling.
-      const characterBudget = Math.max(6, Math.floor(text.replace(/\s/gu, '').length * 0.22));
+      const limits = paragraphBudget(text, settings.maxGroups);
       let size = 0;
       const selected = [];
-      for (const item of resolved) {
-        if (selected.length >= settings.maxGroups) break;
-        if (size + spanSize(item) <= characterBudget) { selected.push(item); size += spanSize(item); }
+      const remaining = [...resolved];
+      while (remaining.length && selected.length < limits.groups) {
+        // Spread cues across the paragraph, instead of spending the budget at its start.
+        const score = item => item.priority - selected.reduce((penalty, chosen) =>
+          penalty + (Math.abs(chosen.spans[0].start - item.spans[0].start) < 28 ? 35 : 0), 0);
+        remaining.sort((a,b) => score(b)-score(a) || spanSize(b)-spanSize(a) || a.spans[0].start-b.spans[0].start);
+        const item = remaining.shift();
+        if (item.oncePerBlock && selected.some(x => x.id === item.id)) continue;
+        if (size + spanSize(item) <= limits.characters) { selected.push(item); size += spanSize(item); }
       }
       return selected.sort((a, b) => a.spans[0].start - b.spans[0].start);
     }
     return {match, settings};
   }
 
-  globalThis.ReadingCues = Object.freeze({DEFAULTS, LIMITS, CATEGORIES, safeTerm, normalizeSettings,
-    parseImport, exportDictionary, sitePattern, validateLexicon, createMatcher});
+  globalThis.ReadingCues = Object.freeze({DEFAULTS, LIMITS, CATEGORIES, CATEGORY_LABELS, safeTerm, normalizeSettings,
+    parseImport, exportDictionary, sitePattern, isSiteEnabled, paragraphBudget, validateLexicon, createMatcher});
 })();

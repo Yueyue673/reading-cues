@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const UI = ReadingCuesUI;
+  UI.mountCategories('category-choices');
   let settings;
   function renderList(name, items) {
     const list = document.getElementById(`${name}-list`);
@@ -24,14 +25,13 @@
     UI.showPreferences(settings);
     renderList('personal', settings.personal); renderList('ignored', settings.ignored);
     const list = document.getElementById('sites-list'); list.replaceChildren();
-    if (!data.sites.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '还没有启用的网站。'; list.append(li); }
-    for (const site of data.sites) {
+    if (!data.excludedSites.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '没有暂停的网站。所有普通网页默认自动运行。'; list.append(li); }
+    for (const site of data.excludedSites) {
       const li = document.createElement('li'), span = document.createElement('span'), button = document.createElement('button');
-      span.textContent = site; button.textContent = '关闭并撤回权限'; button.setAttribute('aria-label', `关闭${site}并撤回权限`);
+      span.textContent = site; button.textContent = '恢复自动提示'; button.setAttribute('aria-label', `恢复${site}的自动提示`);
       button.addEventListener('click', () => void UI.act(async () => {
-        await UI.send({type: 'site', url: site, enabled: false});
-        await chrome.permissions.remove({origins: [site]});
-        await refresh(); UI.announce('网站已关闭，访问权限已撤回。');
+        await UI.send({type: 'site', url: site, enabled: true});
+        await refresh(); UI.announce('这个网站已恢复自动提示。');
       }));
       li.append(span, button); list.append(li);
     }
@@ -62,7 +62,7 @@
     });
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.settings || changes.sites)) void UI.act(refresh);
+    if (area === 'local' && (changes.settings || changes.excludedSites)) void UI.act(refresh);
   });
   void UI.act(refresh);
 })();

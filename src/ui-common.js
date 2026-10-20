@@ -6,8 +6,8 @@
     return result;
   }
   async function load() {
-    const data = await chrome.storage.local.get(['settings', 'sites']);
-    return {settings: ReadingCues.normalizeSettings(data.settings), sites: data.sites || []};
+    const data = await chrome.storage.local.get(['settings', 'excludedSites']);
+    return {settings: ReadingCues.normalizeSettings(data.settings), excludedSites: data.excludedSites || []};
   }
   function announce(text, error = false) {
     const el = document.getElementById('message');
@@ -32,11 +32,20 @@
       void act(() => send({type: 'settings', patch: {enabled: !event.target.checked}}).then(onChange));
     });
   }
+  function mountCategories(id) {
+    const root = document.getElementById(id);
+    if (!root) return;
+    for (const [category, title] of Object.entries(ReadingCues.CATEGORY_LABELS)) {
+      const label = document.createElement('label'), input = document.createElement('input');
+      input.type = 'checkbox'; input.name = 'category'; input.value = category;
+      label.append(input, document.createTextNode(title)); root.append(label);
+    }
+  }
   function showPreferences(settings) {
     for (const input of document.querySelectorAll('[name=style]')) input.checked = settings.style === input.value;
     for (const input of document.querySelectorAll('[name=category]')) input.checked = settings.categories.includes(input.value);
     if (document.getElementById('density')) document.getElementById('density').value = settings.maxGroups;
     if (document.getElementById('global-pause')) document.getElementById('global-pause').checked = !settings.enabled;
   }
-  globalThis.ReadingCuesUI = {send, load, announce, act, bindPreferences, showPreferences};
+  globalThis.ReadingCuesUI = {send, load, announce, act, bindPreferences, showPreferences, mountCategories};
 })();

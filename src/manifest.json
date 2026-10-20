@@ -1,11 +1,18 @@
 {
   "manifest_version": 3,
   "name": "轻读 · Reading Cues",
-  "version": "0.1.0",
-  "description": "在本地为中文正文中的少量条件、限制与转折表达提供可定制提示。",
+  "version": "0.2.0",
+  "description": "安装后自动为网页中的逻辑、限制、时间、数值与概念提供本地阅读提示。",
   "minimum_chrome_version": "105",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["core.js", "lexicon.js", "renderer.js", "content.js"],
+    "css": ["highlights.css"],
+    "run_at": "document_idle",
+    "all_frames": true
+  }],
   "background": { "service_worker": "background.js" },
   "action": { "default_title": "轻读：阅读提示", "default_popup": "popup.html", "default_icon": {"16":"icons/16.png","32":"icons/32.png","48":"icons/48.png","128":"icons/128.png"} },
   "icons": {"16":"icons/16.png","32":"icons/32.png","48":"icons/48.png","128":"icons/128.png"},

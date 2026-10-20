@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "language": "zh-Hans-and-zh-Hant",
+  "provenance": "Original rules and examples written for Reading Cues. No third-party lexicon data included.",
+  "entries": [
+    {"id":"scope.not-all","label":"并非所有","kind":"literal","category":"restriction","priority":96,"forms":["并非所有","並非所有"],"source":"original:scope","examples":{"positive":[{"text":"并非所有建议都适合每个人。","marks":["并非所有"]},{"text":"並非所有建議都適合你。","marks":["並非所有"]}],"negative":["不但支持中文，还支持英文。"]}},
+    {"id":"scope.not-necessarily","label":"不一定","kind":"literal","category":"restriction","priority":93,"forms":["不一定"],"source":"original:scope","examples":{"positive":[{"text":"这样不一定有用。","marks":["不一定"]}],"negative":["不但完成了，还做了检查。"]}},
+    {"id":"scope.may-not","label":"未必","kind":"literal","category":"restriction","priority":92,"forms":["未必"],"source":"original:scope","examples":{"positive":[{"text":"更醒目的提示未必更容易阅读。","marks":["未必"]}],"negative":["尚未完成必要的检查。"]}},
+    {"id":"scope.not-imply","label":"并不意味着","kind":"literal","category":"restriction","priority":95,"forms":["并不意味着","並不意味著"],"source":"original:scope","examples":{"positive":[{"text":"速度变快并不意味着理解更好。","marks":["并不意味着"]}],"negative":["这个词意味着什么？"]}},
+    {"id":"scope.not-represent","label":"不代表","kind":"literal","category":"restriction","priority":91,"forms":["不代表"],"source":"original:scope","examples":{"positive":[{"text":"提示不代表全文重点。","marks":["不代表"]}],"negative":["不但有代表性，还很清楚。"]}},
+    {"id":"scope.no-guarantee","label":"不能保证","kind":"literal","category":"restriction","priority":94,"forms":["不能保证","不能保證"],"source":"original:scope","examples":{"positive":[{"text":"一条规则不能保证识别所有语境。","marks":["不能保证"]}],"negative":["请保证原文能够正常复制。"]}},
+    {"id":"scope.not-equal","label":"不等于","kind":"literal","category":"restriction","priority":94,"forms":["不等于","不等於"],"source":"original:scope","examples":{"positive":[{"text":"标记更多不等于理解更好。","marks":["不等于"]}],"negative":["不得不等待新的结果。"]}},
+    {"id":"scope.limited-to","label":"仅限","kind":"literal","category":"restriction","priority":90,"forms":["仅限","僅限"],"source":"original:scope","examples":{"positive":[{"text":"这个活动仅限周末参加。","marks":["仅限"]}],"negative":["没有限制参加的时间。"]}},
+    {"id":"scope.at-least","label":"至少","kind":"literal","category":"restriction","priority":80,"forms":["至少"],"source":"original:scope","examples":{"positive":[{"text":"请至少保留一份备份。","marks":["至少"]}],"negative":["少量提示就足够了。"]}},
+    {"id":"scope.at-most","label":"至多","kind":"literal","category":"restriction","priority":80,"forms":["至多"],"source":"original:scope","examples":{"positive":[{"text":"每次至多选择三个表达。","marks":["至多"]}],"negative":["许多表达需要结合上下文。"]}},
+    {"id":"condition.only-if","label":"只有…才…","kind":"pair","category":"condition","priority":88,"pairs":[["只有","才"]],"maxGap":80,"rightExcludes":["华","華","艺","藝","气","氣","干","幹","子","女","学","學","貌"],"source":"original:paired-condition","examples":{"positive":[{"text":"只有开启后才会生效。","marks":["只有","才"]}],"negative":["只有一只猫。","只有他的才华让人难忘。","只有开启。新页面才生效。"]}},
+    {"id":"condition.as-long-as","label":"只要…就…","kind":"pair","category":"condition","priority":86,"pairs":[["只要","就"]],"maxGap":80,"rightExcludes":["职","職","业","業","医","醫","诊","診"],"source":"original:paired-condition","examples":{"positive":[{"text":"只要保存词库就会在下次使用。","marks":["只要","就"]}],"negative":["只要一杯茶。","只要一次就医记录即可。","只要保存；页面就会更新。"]}},
+    {"id":"condition.unless","label":"除非…否则…","kind":"pair","category":"condition","priority":89,"pairs":[["除非","否则"],["除非","否則"]],"maxGap":96,"source":"original:paired-condition","examples":{"positive":[{"text":"除非你主动开启，否则不会处理这个网站。","marks":["除非","否则"]},{"text":"除非先保存，否則設定不會保留。","marks":["除非","否則"]}],"negative":["除非另有说明。否则需要重新申请。"]}},
+    {"id":"condition.even-if","label":"即使…也…","kind":"pair","category":"condition","priority":84,"pairs":[["即使","也"]],"maxGap":80,"rightExcludes":["门","門"],"source":"original:paired-condition","examples":{"positive":[{"text":"即使阅读速度没有变快，也可以记录负担的变化。","marks":["即使","也"]},{"text":"即使是也门的新闻也要核实。","marks":["即使","也"]}],"negative":["即使困难。也要分开判断。","即使是也门的新闻。"]}},
+    {"id":"contrast.although","label":"虽然…但是…","kind":"pair","category":"contrast","priority":80,"pairs":[["虽然","但是"],["雖然","但是"],["虽然","但"],["雖然","但"]],"maxGap":96,"rightExcludes":["愿","願","凡"],"source":"original:paired-concession","examples":{"positive":[{"text":"虽然页面很长，但是可以从一段开始。","marks":["虽然","但是"]},{"text":"雖然提示很少，但原文仍然完整。","marks":["雖然","但"]}],"negative":["虽然愿意试一试。下一段但是另一个话题。"]}},
+    {"id":"contrast.despite","label":"尽管…仍然…","kind":"pair","category":"contrast","priority":80,"pairs":[["尽管","仍然"],["儘管","仍然"]],"maxGap":96,"source":"original:paired-concession","examples":{"positive":[{"text":"尽管规则很保守，仍然可能误标。","marks":["尽管","仍然"]}],"negative":["尽管去试。仍然不是同一句。"]}},
+    {"id":"contrast.however","label":"然而","kind":"literal","category":"contrast","priority":70,"forms":["然而"],"excludePhrases":["自然而然"],"source":"original:contrast","examples":{"positive":[{"text":"样式看起来舒服，然而仍需连续使用验证。","marks":["然而"]}],"negative":["这个习惯是自然而然形成的。"]}},
+    {"id":"contrast.but","label":"但是","kind":"literal","category":"contrast","priority":70,"forms":["但是"],"source":"original:contrast","examples":{"positive":[{"text":"提示会保留，但是可以随时暂停。","marks":["但是"]}],"negative":["但愿今天读得轻松一些。"]}}
+  ]
+}

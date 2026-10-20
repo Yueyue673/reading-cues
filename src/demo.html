@@ -2,13 +2,13 @@
 <body><div class="demo-layout">
   <aside class="demo-sidebar" data-reading-cues-ignore>
     <div class="brand"><img src="icons/48.png" alt=""><div><b>轻读</b><small>READING CUES</small></div></div>
-    <p class="eyebrow">一个小小的阅读实验</p><p class="muted">给句意的转弯处，<br>留一点温和的提示。</p>
+    <p class="eyebrow">一个小小的阅读实验</p><p class="muted">打开网页，自动标记。<br>把注意留给阅读。</p>
     <fieldset><legend>读读看，哪种更舒服</legend><div class="choices">
       <label class="choice"><input type="radio" name="demo-style" value="original">原文</label>
       <label class="choice"><input type="radio" name="demo-style" value="background" checked><span class="preview-mark">浅底色</span></label>
       <label class="choice"><input type="radio" name="demo-style" value="underline"><span class="preview-line">下划线</span></label>
     </div></fieldset>
-    <label class="row" for="demo-density">每段最多<select id="demo-density"><option value="1">1 组</option><option value="2" selected>2 组</option><option value="3">3 组</option></select></label>
+    <label class="row" for="demo-density">提示数量<select id="demo-density"><option value="0">自动，随段落长度</option><option value="1">每段最多 1 组</option><option value="2">每段最多 2 组</option><option value="3">每段最多 3 组</option><option value="5">每段最多 5 组</option><option value="8">每段最多 8 组</option></select></label>
     <hr class="divider"><p id="demo-status" class="status" role="status">正在准备文字…</p><p class="hint">提示来自本地规则。<br>它们不代表全文的重点。</p>
     <details><summary>试着加一个自己的词</summary><form id="demo-personal-form" class="stack"><label class="sr-only" for="demo-term">需要提示的词语</label><input id="demo-term" type="text" placeholder="例如：认知负荷" maxlength="80" required><button type="submit">加入这次试读</button></form><p id="demo-personal-status" class="hint" role="status"></p></details>
     <p class="hint" style="margin-top:25px">本页不保存输入内容。<br>没有模型调用或网络请求。</p>
@@ -18,7 +18,7 @@
     <div data-reading-cues-ignore><p class="eyebrow">READ AT YOUR OWN PACE</p><h1>把注意留给文字。</h1><p class="deck">不用更努力。先试着少一点阅读的阻力。</p><p class="meta">轻读试读页 · 原创示例 · 约 3 分钟</p></div>
     <article id="reading-article" aria-label="试读文章">
       <p>有时，我们面对的不是一篇特别难的文章。只是文字挤在一起，句子拐了几个弯，注意就悄悄走开了。这不一定是努力不够。我们可以先调整眼前的阅读环境，让重新开始变得容易一点。</p>
-      <p>只有你主动开启，提示才会出现。它们不改写原文，也不替你下结论。你仍然可以按自己的节奏，读完一整段，停下来想一想，再继续往下。</p>
+      <p>打开网页后，轻读会自动提供提示，无需逐个网站开启。只有你主动暂停时，提示才会停止。它们不改写原文，也不替你下结论。你仍然可以按自己的节奏，读完一整段，停下来想一想，再继续往下。</p>
       <h2>给句意的转弯处，一点线索</h2>
       <p>并非所有表达都需要变得醒目。满页都是颜色时，寻找真正需要的信息仍然很费力。少量稳定的线索，也许可以让那些容易读漏的地方更容易被注意到。</p>
       <p>虽然一句话里有很多词，但是有些表达会悄悄改变句意。比如一个条件、一处例外，或是对结论范围的限制。我们先把这些完整表达保留下来，避免只看到其中一个字。</p>

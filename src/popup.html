@@ -2,9 +2,9 @@
 <body class="popup">
   <div class="brand"><img src="icons/48.png" alt=""><div><b>轻读</b><small>READING CUES</small></div></div>
   <main>
-    <span class="pill" id="site-label">当前网站</span>
+    <span class="pill" id="site-label">全局自动运行中</span>
     <p class="site" id="site-name">正在读取…</p>
-    <p class="hint">为正文中的少量完整表达提供提示。</p>
+    <p class="hint">打开网页就自动提示，无需逐站开启。</p>
     <button id="site-toggle" class="primary" disabled>正在准备…</button>
     <p class="status" id="scan-status" aria-live="polite"></p>
     <fieldset><legend>提示样式</legend><div class="choices">
@@ -13,11 +13,9 @@
     </div></fieldset>
     <p class="sample">这<span id="sample-cue" class="preview-mark">不一定</span>更快，但可以慢慢试。</p>
     <details><summary>提示数量与类别</summary><div class="stack">
-      <label class="row" for="density">每段最多<select id="density"><option value="1">1 组</option><option value="2">2 组</option><option value="3">3 组</option></select></label>
-      <label><input name="category" type="checkbox" value="restriction">限制与不确定性</label>
-      <label><input name="category" type="checkbox" value="condition">成对条件</label>
-      <label><input name="category" type="checkbox" value="contrast">转折与让步</label>
-      <p class="hint">上限不是目标；程序也会控制提示占比。</p>
+      <label class="row" for="density">提示数量<select id="density"><option value="0">自动，随段落长度</option><option value="1">每段最多 1 组</option><option value="2">每段最多 2 组</option><option value="3">每段最多 3 组</option><option value="5">每段最多 5 组</option><option value="8">每段最多 8 组</option></select></label>
+      <div id="category-choices" class="stack"></div>
+      <p class="hint">默认自动分配数量，并保留完整表达。</p>
     </div></details>
     <hr class="divider">
     <label class="hint"><input type="checkbox" id="global-pause">暂停所有网站的提示</label>

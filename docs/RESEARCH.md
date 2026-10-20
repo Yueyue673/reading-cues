@@ -1,6 +1,6 @@
 # 研究与设计依据
 
-核对日期：2026-10-20。以下分别标出研究观察、工程约束和本项目假设。没有以 ADHD / 阅读障碍诊断替代个人偏好，也没有把中文提示的辅助效果当成已知事实。
+核对日期：2026-10-20。v0.2 已根据使用反馈改为默认全局自动，并扩大到 374 条原创规则。以下分别标出研究观察、工程约束和本项目假设。没有以 ADHD / 阅读障碍诊断替代个人偏好，也没有把中文提示的辅助效果当成已知事实。
 
 ## 1. 突出文字可能有帮助，但不能直接迁移效果
 
@@ -12,15 +12,15 @@ Rello、Saggion 与 Baeza-Yates（2014）对 62 位西班牙语母语读者进�
 
 DiMLex 的数据结构区分正字法变体、连续 / 不连续表达、连接与非连接用法以及歧义。Chinese-DiMLex 提供中文连接词资源，可以参考其问题划分。[DiMLex 结构文档](https://github.com/discourse-lab/dimlex/blob/master/DimLex-documentation.md)、[Chinese-DiMLex 论文信息](https://research.dial.uclouvain.be/entities/publication/9a455e7e-13f2-4e5f-8589-54300b1cb5d0)
 
-本项目据此作出工程选择：稳定 ID、列举词形、配对片段、最长匹配、有限间距、句界阻断、明确反例。配对仅是形式线索，不声称完成篇章解析。原型不高亮单字“不”，不推断“差点没”的事件结果。公共规则优先使用完整限制表达，个人词库可以显式添加自己的词。
+本项目据此作出工程选择：稳定 ID、列举词形、配对片段、最长匹配、有限间距、句界阻断、明确反例。配对仅是形式线索，不声称完成篇章解析。不高亮单字“不”，不推断“差点没”的事件结果。“不但”等递进表达和“不得不”按完整表达分组，不将其中的“不”单独解释为否定。公共规则优先使用完整限制表达，个人词库可以显式添加自己的词。
 
-Chinese-DiMLex 仓库 README 的许可段列出 CC BY-NC-SA 4.0，且表述仍提及德语词库。这里没有进一步确认其中文数据授权，因此**不复制词条、例句或 XML**。本项目 18 条规则和例句为独立编写，MIT 许可。[仓库许可说明](https://github.com/discourse-lab/chinese-dimlex)
+Chinese-DiMLex 仓库 README 的许可段列出 CC BY-NC-SA 4.0，且表述仍提及德语词库。这里没有进一步确认其中文数据授权，因此**不复制词条、例句或 XML**。本项目 374 条规则和例句为独立编写，MIT 许可。[仓库许可说明](https://github.com/discourse-lab/chinese-dimlex)
 
 ## 3. 个性化和可控性
 
 W3C 认知无障碍补充指南包含“支持适配与个性化”，并强调让重要信息和操作容易找到。它属于补充指导，不能作为本插件已符合 WCAG 或已取得辅助效果的证明。[补充指南](https://www.w3.org/WAI/WCAG2/supplemental/)、[重要信息设计模式](https://www.w3.org/WAI/WCAG2/supplemental/patterns/o2p04-page-important/)
 
-实现选择：基础词库装好即有；按站点主动启用；两种样式一次只用一种；允许忽略表达、关闭类别、调整数量和整体暂停。不会从停留时间、鼠标轨迹或滚动方式推断“困难词”。
+实现选择：基础词库装好即有；安装授权后全局自动，按需暂停网站或全部；两种样式一次只用一种；允许忽略表达、关闭类别、调整数量和整体暂停。不会从停留时间、鼠标轨迹或滚动方式推断“困难词”。
 
 颜色不是唯一表达意义的渠道。原文完整保留，不将“紫色 / 黄色”等作为类别编码，并提供下划线；强制颜色模式也采用下划线。这里传达的是“规则命中”，原词自身承担语言意义。[W3C 无障碍原则](https://www.w3.org/WAI/fundamentals/accessibility-principles/)
 
@@ -30,7 +30,7 @@ CSS Custom Highlight API 可以为 Range 绘制提示而不包裹、拆分网页
 
 因此首版实现浅底色 / 下划线；原来讨论的轻加粗留到独立兼容原型。浅底色使用两种亮暗背景方案，在可能降低文字对比度或背景不确定时退回下划线。这是有限的工程防护，不是对任意网站背景、混合色、透明文字的无障碍认证。
 
-扩展按可选站点权限注册内容脚本；初次启用通过浏览器注入样式，避免依赖网页允许内联样式。[Chrome 权限声明](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)、[脚本与样式注入](https://developer.chrome.com/docs/extensions/reference/api/scripting)
+v0.2 使用全局静态内容脚本，在安装 / 升级获得浏览器授权后自动处理普通 HTTP / HTTPS 页面和嵌入页。样式由浏览器注入，避免依赖网页允许内联样式。[Chrome 权限声明](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)、[脚本与样式注入](https://developer.chrome.com/docs/extensions/reference/api/scripting)
 
 ## 5. 明确需要验证的假设
 
@@ -39,4 +39,4 @@ CSS Custom Highlight API 可以为 Range 绘制提示而不包裹、拆分网页
 3. 个人忽略和词条能否减少负担，而不带来新的维护任务？
 4. 熟悉之后的连续阅读体验是否仍然有帮助？
 
-每段默认 2 组、1–3 组可调、22% 字符预算、最小 6 单元预算、80–96 单元配对间距，都是**可修改的起始工程参数**，没有研究证明它们最优。文内提示不附带语义解释，不把“标得多”作为目标。试用方法见 [TRYOUT.md](TRYOUT.md)。
+默认按每 100 个非空白字符约 2 组分配（最少 2 组、最多 16 组）、可选固定上限、22% 字符预算、完整短语的最小 12 单元预算、80–96 单元配对间距，都是**可修改的起始工程参数**，没有研究证明它们最优。文内提示不附带语义解释，不把“标得多”作为目标。试用方法见 [TRYOUT.md](TRYOUT.md)。

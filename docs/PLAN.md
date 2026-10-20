@@ -1,3 +1,7 @@
+# 历史计划 · v0.1.0
+
+本文件保留首版规划。当前版本已改为默认全局自动和 374 条规则；以 [v0.2 计划](PLAN-0.2.md)、[README](../README.md) 与 [验证报告](VALIDATION.md) 为准。
+
 # 轻读 Reading Cues：实现计划
 
 日期：2026-10-20。目标平台：桌面 Chrome / Edge（Manifest V3）。

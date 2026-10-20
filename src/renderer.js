@@ -34,14 +34,16 @@
     }
   }
 
-  function toRange(doc, pieces, span) {
+  function toRange(doc, pieces, span, expected) {
     const first = pieces.find(p => p.end > span.start);
     const last = pieces.find(p => p.end >= span.end);
     if (!first || !last || !first.node.isConnected || !last.node.isConnected) return null;
-    const range = doc.createRange();
-    range.setStart(first.node, span.start - first.start);
-    range.setEnd(last.node, span.end - last.start);
-    return range;
+    try {
+      const range = doc.createRange();
+      range.setStart(first.node, span.start - first.start);
+      range.setEnd(last.node, span.end - last.start);
+      return range.toString() === expected ? range : null;
+    } catch { return null; }
   }
 
   function parseColor(input) {
@@ -93,9 +95,17 @@
     let matcher = CORE.createMatcher(lexicon, config);
     let generation = 0, destroyed = false, timer = null, firstDirty = 0, observer;
     let snapshot = {supported, groups: 0, ranges: 0, limited: false, busy: false, milliseconds: 0};
-    let styleNode;
+    let styleNode, activeGroups = [];
     const publish = data => { snapshot = {...snapshot, ...data}; onUpdate({...snapshot}); };
-    const clear = () => { for (const name of NAMES) win.CSS?.highlights?.delete(name); };
+    const clear = () => { activeGroups = []; for (const name of NAMES) win.CSS?.highlights?.delete(name); };
+    const valid = group => group.parts.every(part => part.range.startContainer.isConnected &&
+      part.range.endContainer.isConnected && part.range.toString() === part.expected);
+    function paint(groups) {
+      const buckets = new Map(NAMES.map(name => [name, new win.Highlight()]));
+      for (const group of groups) for (const part of group.parts) buckets.get(part.name).add(part.range);
+      for (const [name, highlight] of buckets) win.CSS.highlights.set(name, highlight);
+      activeGroups = groups;
+    }
     const idle = () => new Promise(resolve => win.setTimeout(resolve, 0));
 
     async function scan() {
@@ -104,7 +114,7 @@
       win.clearTimeout(timer); firstDirty = 0;
       // A full scan includes all mutations already queued before it begins.
       observer?.takeRecords();
-      if (!supported || !config.enabled || !doc.body) { clear(); publish({groups: 0, ranges: 0, busy: false}); return; }
+      if (!supported || !config.enabled || !doc.body) { clear(); publish({groups: 0, ranges: 0, limited:false, busy: false}); return; }
       const started = win.performance.now();
       publish({busy: true});
       if (!managedStyles && !styleNode?.isConnected) {
@@ -113,7 +123,7 @@
         styleNode.textContent = CSS_TEXT;
         (doc.head || doc.documentElement).append(styleNode);
       }
-      const buckets = new Map(NAMES.map(n => [n, []]));
+      const pendingGroups = [];
       const cache = new WeakMap();
       let text = '', pieces = [], groups = 0, ranges = 0, total = 0, limited = false, overflow = false;
       let sliceStarted = win.performance.now();
@@ -121,13 +131,11 @@
         if (text && /\S/u.test(text)) {
           for (const group of matcher.match(text)) {
             if (groups >= 2000) { limited = true; break; }
-            const pairRanges = group.spans.map(span => toRange(doc, pieces, span));
+            const pairRanges = group.spans.map(span => toRange(doc, pieces, span, text.slice(span.start,span.end)));
             if (pairRanges.some(x => !x)) continue;
             groups++;
-            for (const range of pairRanges) {
-              buckets.get(config.style === 'underline' ? NAMES[2] : bucket(range, win, cache)).push(range);
-              ranges++;
-            }
+            pendingGroups.push({parts:pairRanges.map((range,index) => ({range, expected:text.slice(group.spans[index].start,group.spans[index].end),
+              name:config.style === 'underline' ? NAMES[2] : bucket(range,win,cache)}))});
           }
         }
         text = ''; pieces = []; overflow = false;
@@ -152,14 +160,10 @@
       }
       flush();
       if (ticket !== generation || destroyed) return;
-      clear();
-      for (const [name, spans] of buckets) {
-        const highlight = new win.Highlight();
-        // Avoid spreading thousands of ranges into one function call.
-        for (const range of spans) highlight.add(range);
-        win.CSS.highlights.set(name, highlight);
-      }
-      publish({groups, ranges, limited, busy: false, milliseconds: Math.round(win.performance.now() - started)});
+      const current = pendingGroups.filter(valid);
+      paint(current);
+      ranges = current.reduce((n,group) => n+group.parts.length,0);
+      publish({groups:current.length, ranges, limited, busy: false, milliseconds: Math.round(win.performance.now() - started)});
     }
 
     function schedule() {
@@ -180,10 +184,20 @@
         if (r.type === 'attributes' && ['hidden', 'aria-hidden', 'contenteditable', 'data-reading-cues-ignore'].includes(r.attributeName)) return true;
         return !element?.closest(SKIP);
       });
-      if (relevant) { generation++; clear(); publish({busy: config.enabled}); schedule(); }
+      if (relevant) {
+        if (records.some(r => r.type === 'attributes')) clear();
+        else {
+          const current = activeGroups.filter(valid);
+          if (supported && current.length !== activeGroups.length) paint(current);
+        }
+        publish({busy:config.enabled}); schedule();
+      }
     });
-    observer.observe(doc.documentElement, {subtree: true, childList: true, characterData: true,
-      attributes: true, attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'contenteditable', 'data-reading-cues-ignore']});
+    function observe() {
+      if (config.enabled) observer.observe(doc.documentElement, {subtree:true, childList:true, characterData:true,
+        attributes:true, attributeFilter:['class','style','hidden','aria-hidden','contenteditable','data-reading-cues-ignore']});
+    }
+    observe();
     const theme = win.matchMedia('(prefers-color-scheme: dark)');
     theme.addEventListener('change', schedule);
     win.addEventListener('pageshow', schedule);
@@ -193,6 +207,7 @@
       getSnapshot: () => ({...snapshot}),
       async setSettings(next) {
         config = CORE.normalizeSettings(next); matcher = CORE.createMatcher(lexicon, config);
+        observer.disconnect(); observe();
         generation++; win.clearTimeout(timer); firstDirty = 0; clear();
         return scan();
       },

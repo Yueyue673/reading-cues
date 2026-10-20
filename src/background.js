@@ -1,7 +1,6 @@
-/* MV3 worker: all writes are serialized to avoid lost personal-word / settings updates. */
+/* Global-by-default MV3 worker. Settings writes are serialized. */
 importScripts('core.js');
 const Core = globalThis.ReadingCues;
-const SCRIPT_ID = 'reading-cues-sites';
 const FILES = ['core.js', 'lexicon.js', 'renderer.js', 'content.js'];
 let queue = Promise.resolve();
 function serialized(task) {
@@ -9,29 +8,45 @@ function serialized(task) {
   queue = result.catch(() => {});
   return result;
 }
-async function syncSites() {
-  const data = await chrome.storage.local.get('sites');
-  const sites = [];
-  for (const pattern of data.sites || []) {
-    if (Core.sitePattern(pattern) === pattern && await chrome.permissions.contains({origins: [pattern]})) sites.push(pattern);
+
+async function migrateStorage() {
+  const data = await chrome.storage.local.get(['settings', 'excludedSites', 'storageVersion']);
+  if (data.storageVersion === 2) return;
+  const settings = Core.normalizeSettings(data.settings);
+  if (data.settings?.categories) {
+    const old = ['restriction', 'condition', 'contrast'];
+    settings.categories = [...new Set([...settings.categories, ...Core.CATEGORIES.filter(x => !old.includes(x))])];
   }
-  const existing = await chrome.scripting.getRegisteredContentScripts({ids: [SCRIPT_ID]});
-  if (sites.length) {
-    const script = {id: SCRIPT_ID, matches: sites, js: FILES, css: ['highlights.css'], runAt: 'document_idle', persistAcrossSessions: true};
-    if (existing.length) await chrome.scripting.updateContentScripts([script]);
-    else await chrome.scripting.registerContentScripts([script]);
-  } else if (existing.length) await chrome.scripting.unregisterContentScripts({ids: [SCRIPT_ID]});
-  if (JSON.stringify(sites) !== JSON.stringify(data.sites || [])) await chrome.storage.local.set({sites});
-  return sites;
+  if (!data.settings || data.settings.maxGroups === 2) settings.maxGroups = 0;
+  await chrome.storage.local.set({settings, excludedSites:data.excludedSites || [], storageVersion:2});
+  await chrome.storage.local.remove('sites');
 }
+
+async function cleanupLegacyScripts() {
+  const scripts = await chrome.scripting.getRegisteredContentScripts({ids:['reading-cues-sites']});
+  if (scripts.length) await chrome.scripting.unregisterContentScripts({ids:['reading-cues-sites']});
+}
+
+async function injectExistingTabs() {
+  const tabs = await chrome.tabs.query({url:['http://*/*', 'https://*/*']});
+  for (const tab of tabs) {
+    const target = {tabId:tab.id, allFrames:true};
+    try {
+      await chrome.scripting.removeCSS({target, files:['highlights.css']});
+      await chrome.scripting.insertCSS({target, files:['highlights.css']});
+      await chrome.scripting.executeScript({target, files:FILES});
+    } catch { /* Browser-protected pages stay untouched; no page notifications. */ }
+  }
+}
+
 async function mutate(message) {
-  const data = await chrome.storage.local.get(['settings', 'sites']);
+  const data = await chrome.storage.local.get(['settings', 'excludedSites']);
   const settings = Core.normalizeSettings(data.settings);
   switch (message.type) {
     case 'settings': {
       const allowed = ['enabled', 'style', 'maxGroups', 'categories'];
       const patch = Object.fromEntries(allowed.filter(k => Object.hasOwn(message.patch || {}, k)).map(k => [k, message.patch[k]]));
-      await chrome.storage.local.set({settings: Core.normalizeSettings({...settings, ...patch})});
+      await chrome.storage.local.set({settings:Core.normalizeSettings({...settings, ...patch})});
       break;
     }
     case 'add-term':
@@ -48,59 +63,46 @@ async function mutate(message) {
     }
     case 'import': {
       const lists = Core.parseImport(message.text);
-      const next = {personal: [...new Set([...settings.personal, ...lists.personal])], ignored: [...new Set([...settings.ignored, ...lists.ignored])]};
+      const next = {personal:[...new Set([...settings.personal, ...lists.personal])], ignored:[...new Set([...settings.ignored, ...lists.ignored])]};
       if (next.personal.length > 300 || next.ignored.length > 300) throw new Error('合并后超过 300 条上限，未导入。');
-      await chrome.storage.local.set({settings: {...settings, ...next}});
+      await chrome.storage.local.set({settings:{...settings, ...next}});
       break;
     }
     case 'site': {
       const pattern = Core.sitePattern(message.url);
-      if (!pattern) throw new Error('这个页面暂不支持提示，请打开普通网页。');
-      let sites = (data.sites || []).filter(x => x !== pattern);
-      if (message.enabled) {
-        if (!await chrome.permissions.contains({origins: [pattern]})) throw new Error('需要先允许访问这个网站。');
-        sites.push(pattern);
-      }
-      await chrome.storage.local.set({sites});
-      try { await syncSites(); }
-      catch (error) {
-        await chrome.storage.local.set({sites: data.sites || []});
-        try { await syncSites(); } catch { /* Surface the original registration failure. */ }
-        throw new Error('网站设置未完成，已恢复原来的启用列表。请重新打开轻读后再试。', {cause: error});
-      }
-      if (message.enabled && Number.isInteger(message.tabId)) {
-        // An already-open page needs immediate injection; subsequent visits use the registration.
-        try {
-          const target = {tabId: message.tabId};
-          await chrome.scripting.removeCSS({target, files: ['highlights.css']});
-          await chrome.scripting.insertCSS({target, files: ['highlights.css']});
-          await chrome.scripting.executeScript({target, files: FILES});
-        }
-        catch { return {warning: '网站已启用；当前页面无法注入，请刷新网页后重试。'}; }
-      }
+      if (!pattern) throw new Error('这个页面不支持提示。');
+      const excludedSites = (data.excludedSites || []).filter(x => x !== pattern);
+      if (!message.enabled) excludedSites.push(pattern);
+      await chrome.storage.local.set({excludedSites});
       break;
     }
     default: throw new Error('不支持的操作。');
   }
   return {};
 }
+
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
-  // Content scripts may query status themselves, but settings writes only come from extension pages.
-  if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL(''))) return;
-  serialized(() => mutate(message)).then(result => reply({ok: true, ...result}), error => reply({ok: false, error: error.message}));
+  if (sender.id !== chrome.runtime.id) return;
+  if (message?.type === 'page-context' && sender.tab) {
+    reply({topPattern:Core.sitePattern(sender.tab.url)});
+    return;
+  }
+  if (!sender.url?.startsWith(chrome.runtime.getURL(''))) return;
+  serialized(() => mutate(message)).then(result => reply({ok:true, ...result}), error => reply({ok:false, error:error.message}));
   return true;
 });
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({id: 'reading-cues-add', title: '轻读：以后提示“%s”', contexts: ['selection'], documentUrlPatterns: ['http://*/*', 'https://*/*']});
+    chrome.contextMenus.create({id:'reading-cues-add', title:'轻读：以后提示“%s”', contexts:['selection'], documentUrlPatterns:['http://*/*', 'https://*/*']});
   });
-  void serialized(syncSites).catch(console.error);
+  void serialized(async () => { await migrateStorage(); await cleanupLegacyScripts(); await injectExistingTabs(); }).catch(console.error);
 });
-chrome.runtime.onStartup.addListener(() => { void serialized(syncSites).catch(console.error); });
-chrome.permissions.onRemoved.addListener(() => { void serialized(syncSites).catch(console.error); });
+chrome.runtime.onStartup.addListener(() => {
+  void serialized(async () => { await migrateStorage(); await cleanupLegacyScripts(); }).catch(console.error);
+});
 chrome.contextMenus.onClicked.addListener(info => {
   if (info.menuItemId !== 'reading-cues-add') return;
   const term = info.selectionText?.trim();
   if (!Core.safeTerm(term)) { void chrome.runtime.openOptionsPage(); return; }
-  void serialized(() => mutate({type: 'add-term', term})).catch(() => chrome.runtime.openOptionsPage());
+  void serialized(() => mutate({type:'add-term', term})).catch(() => chrome.runtime.openOptionsPage());
 });

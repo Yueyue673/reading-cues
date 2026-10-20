@@ -17,7 +17,7 @@ async function walk(folder, prefix = '') {
 function crc32(data) { let crc=0xffffffff; for(const byte of data){crc^=byte;for(let k=0;k<8;k++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return(crc^0xffffffff)>>>0; }
 const files = await walk(dir);
 files.push({name:'LICENSE', data:await readFile(path.join(root,'LICENSE'))});
-files.push({name:'INSTALL.txt', data:Buffer.from('轻读 Reading Cues\n\n1. 解压整个 ZIP 文件到固定目录。\n2. 在 Chrome 打开 chrome://extensions ，或在 Edge 打开 edge://extensions 。\n3. 打开“开发者模式”，点击“加载已解压的扩展程序”，选择包含 manifest.json 的目录。\n4. 打开普通网页，点击轻读，在这个网站启用。\n5. 双击 demo.html 可以离线试读。\n\n源码与隐私说明：https://github.com/Yueyue673/reading-cues\n')});
+files.push({name:'INSTALL.txt', data:Buffer.from('轻读 Reading Cues\n\n1. 解压整个 ZIP 文件到固定目录。\n2. 在 Chrome 打开 chrome://extensions ，或在 Edge 打开 edge://extensions 。\n3. 打开“开发者模式”，点击“加载已解压的扩展程序”，选择包含 manifest.json 的目录。\n4. 打开普通网页即可自动提示，无需逐个网站开启。安装或升级时请确认浏览器的网站访问权限。\n5. 双击 demo.html 可以离线试读。\n\n源码与隐私说明：https://github.com/Yueyue673/reading-cues\n')});
 const local = [], central = []; let offset = 0;
 for (const file of files) {
   const name = Buffer.from(file.name), compressed = deflateRawSync(file.data), crc = crc32(file.data);

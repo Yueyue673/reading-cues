@@ -13,17 +13,21 @@ test('lexicon is structurally valid, IDs and original provenance are present', (
   assert.throws(() => Core.validateLexicon({...lexicon,entries:[lexicon.entries[0],lexicon.entries[0]]}));
 });
 for (const entry of lexicon.entries) {
+  const ruleMatcher = Core.createMatcher({...lexicon,entries:[entry]});
   for (const example of entry.examples.positive) test(`${entry.id}: positive ${example.text}`, () => {
-    const found = matcher.match(example.text,{budget:false}).filter(g => g.id === entry.id);
+    const found = ruleMatcher.match(example.text,{budget:false}).filter(g => g.id === entry.id);
     assert.ok(found.length,`expected ${entry.id}`);
     assert.deepEqual(found[0].spans.map(s => example.text.slice(s.start,s.end)),example.marks);
   });
   for (const example of entry.examples.negative) test(`${entry.id}: negative ${example}`, () => {
-    assert.equal(matcher.match(example,{budget:false}).filter(g => g.id === entry.id).length,0);
+    assert.equal(ruleMatcher.match(example,{budget:false}).filter(g => g.id === entry.id).length,0);
   });
 }
 test('never treats single 不 as a negation or guesses an idiom outcome', () => {
-  for(const text of ['不但支持中文，还支持英文。','差点没赶上车。','不得不离开。','并不是这样。']) assert.deepEqual(marks(text),[]);
+  assert.deepEqual(marks('差点没赶上车。'),[]);
+  assert.deepEqual(marks('不但支持中文，还支持英文。'),[['不但']]);
+  assert.deepEqual(marks('不得不离开。'),[['不得不']]);
+  assert.ok(!marks('并不是这样。').flat().includes('不'));
 });
 test('complete long expressions win over shorter nested personal words', () => {
   assert.deepEqual(marks('这并非所有人的目标。',{personal:['并非','并非所有']}),[['并非所有']]);
@@ -53,7 +57,7 @@ test('paragraph budget applies to complete groups and selected-character density
   for(const maxGroups of [1,2,3]) {
     const groups=Core.createMatcher(lexicon,{maxGroups}).match(text);
     assert.ok(groups.length <= maxGroups);
-    assert.ok(groups.reduce((n,g)=>n+g.spans.reduce((m,s)=>m+s.end-s.start,0),0)<=Math.max(6,Math.floor(text.length*.22)));
+    assert.ok(groups.reduce((n,g)=>n+g.spans.reduce((m,s)=>m+s.end-s.start,0),0)<=Core.paragraphBudget(text,maxGroups).characters);
     assert.ok(groups.filter(g=>g.id.startsWith('condition')).every(g=>g.spans.length===2));
   }
 });
@@ -67,7 +71,7 @@ test('pause returns no matches',()=>assert.deepEqual(marks('不一定。',{enabl
 test('settings normalize untrusted storage and maintain independent defaults',()=>{
   assert.deepEqual(Core.normalizeSettings(null),Core.normalizeSettings());
   const data=Core.normalizeSettings({style:'script',maxGroups:999,categories:['condition','bad'],personal:['词语','词语'],ignored:['<script>']});
-  assert.equal(data.style,'background');assert.equal(data.maxGroups,2);assert.deepEqual(data.categories,['condition']);assert.deepEqual(data.personal,['词语']);assert.deepEqual(data.ignored,[]);
+  assert.equal(data.style,'background');assert.equal(data.maxGroups,0);assert.deepEqual(data.categories,['condition']);assert.deepEqual(data.personal,['词语']);assert.deepEqual(data.ignored,[]);
 });
 test('import/export roundtrip only includes personal and ignored lists',()=>{
   const raw=Core.exportDictionary({personal:['工作记忆'],ignored:['然而'],sites:['https://private.example/*']});
