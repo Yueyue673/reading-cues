@@ -12,11 +12,15 @@ const require=createRequire(import.meta.url),{chromium}=require('playwright');
 const posterRequire=createRequire(path.join(root,'artifacts','poster-tools','package.json'));
 const QRCode=posterRequire('qrcode'),jsQR=posterRequire('jsqr'),{PNG}=posterRequire('pngjs');
 const out=path.join(root,'docs','posters'),screens=path.join(out,'screens'),qa=path.join(root,'artifacts','poster-qa');
-for(const folder of [out,screens,qa])await mkdir(folder,{recursive:true});
+for(const folder of [out,screens,qa,path.join(out,'previews')])await mkdir(folder,{recursive:true});
 const download='https://github.com/Yueyue673/reading-cues/releases/latest';
 const launch={headless:true,...(process.env.READING_CUES_BROWSER_EXECUTABLE?{executablePath:process.env.READING_CUES_BROWSER_EXECUTABLE}:{})};
 const report={release:'v0.6.1',sourceCommit:'5b68e811e8a79cc1bf9a03ee7e099ea40d7aef45',download,posters:[]};
 if(!process.argv.includes('--layout-only'))await capture();
+else {
+  try{report.capture={...(JSON.parse(await readFile(path.join(qa,'capture-verification.json'),'utf8'))),reusedScreens:true};}
+  catch{report.capture={reusedScreens:true};}
+}
 await QRCode.toFile(path.join(screens,'download-qr.png'),download,{errorCorrectionLevel:'M',margin:4,scale:10,color:{dark:'#244536',light:'#ffffff'}});
 await verifyQR(path.join(screens,'download-qr.png'));
 const browser=await chromium.launch(launch);
@@ -41,20 +45,34 @@ try{
     const meta=PNG.sync.read(await readFile(path.join(out,name+'.png')));
     assert.equal(meta.width,2160);assert.equal(meta.height,2700);
     report.posters.push({file:name+'.png',width:meta.width,height:meta.height,contentBottom:metric.contentBottom,footerTop:metric.footerTop});
-    const phone=await browser.newPage({viewport:{width:360,height:450},deviceScaleFactor:1});
-    await phone.goto(pathToFileURL(path.join(out,'posters.html')).href);
-    await phone.evaluate(async id=>{
-      document.querySelectorAll('.poster').forEach(el=>el.style.display=el.id===id?'block':'none');
-      const el=document.getElementById(id);el.style.transform='scale(0.3333333333)';el.style.transformOrigin='top left';el.style.position='absolute';el.style.top='0';
-      document.body.style.width='360px';document.body.style.height='450px';document.body.style.overflow='hidden';
-      await document.fonts.ready;await Promise.all([...el.querySelectorAll('img')].map(img=>img.decode()));
-    },'poster-'+(i+1));
-    await phone.screenshot({path:path.join(qa,name+'-phone.png')});await phone.close();
+    for(const width of [360,540]){
+      const phone=await browser.newPage({viewport:{width,height:width*1.25},deviceScaleFactor:1});
+      await phone.goto(pathToFileURL(path.join(out,'posters.html')).href);
+      await phone.evaluate(async({id,width})=>{
+        document.querySelectorAll('.poster').forEach(el=>el.style.display=el.id===id?'block':'none');
+        const el=document.getElementById(id);el.style.transform=`scale(${width/1080})`;el.style.transformOrigin='top left';el.style.position='absolute';el.style.top='0';
+        document.body.style.width=width+'px';document.body.style.height=width*1.25+'px';document.body.style.overflow='hidden';
+        await document.fonts.ready;await Promise.all([...el.querySelectorAll('img')].map(img=>img.decode()));
+      },{id:'poster-'+(i+1),width});
+      await phone.screenshot(width===360?{path:path.join(qa,name+'-phone.png')}:{path:path.join(out,'previews',name+'.jpg'),type:'jpeg',quality:94});
+      await phone.close();
+    }
   }
   await verifyQR(path.join(out,'04-install.png'));
+  const hero=await browser.newPage({viewport:{width:1600,height:900},deviceScaleFactor:1,colorScheme:'light'});
+  await hero.goto(pathToFileURL(path.join(root,'docs','artwork','hero.html')).href);
+  await hero.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].map(img=>img.decode()));});
+  await hero.screenshot({path:path.join(root,'docs','assets','hero-zh.jpg'),type:'jpeg',quality:94});
+  await hero.evaluate(()=>{
+    document.documentElement.lang='en';document.body.classList.add('en');
+    document.getElementById('title').innerHTML='See phrases,<br>on the page.';
+    document.getElementById('description').innerHTML='A reading aid for Chinese web pages.<br>Adjust the marks. Keep your text local.';
+    document.getElementById('note').textContent='Concept illustration · See actual output in the examples';
+  });
+  await hero.screenshot({path:path.join(root,'docs','assets','hero-en.jpg'),type:'jpeg',quality:94});await hero.close();
   assert.deepEqual(errors,[]);
   await writeFile(path.join(qa,'verification.json'),JSON.stringify(report,null,2));
-  console.log('Generated four separate 2160 × 2700 posters; full-poster QR decoded to the verified release URL.');
+  console.log('Generated four separate 2160 × 2700 posters and two 1600 × 900 README covers; full-poster QR verified.');
 }finally{await browser.close();}
 
 async function verifyQR(file){
@@ -111,6 +129,7 @@ async function capture(){
     await site.bringToFront();await site.locator('#personal').screenshot({path:path.join(screens,'personal.png')});assert.deepEqual(await layout(),notice);
     assert.deepEqual(errors,[]);
     report.capture={realExtension:true,originalTextAndLayoutPreserved:true,personalRanges:ranges,focusEnabled:true};
+    await writeFile(path.join(qa,'capture-verification.json'),JSON.stringify(report.capture,null,2));
     console.log('Captured real automatic marks, paragraph focus and personal-term form/result.');
   }finally{await context?.close();await new Promise(resolve=>server.close(resolve));}
 }
