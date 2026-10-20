@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "轻读 · Reading Cues",
-  "version": "0.6.0",
-  "description": "本地中文意义块候选与阅读提示，默认下划线，支持开放评论组件、个人词组和稳定可选多色。",
+  "version": "0.6.1",
+  "description": "给中文网页里的部分词组加上浅色标记。可调整颜色和数量、添加个人词语，也可开启阅读尺或突出当前段落。文字在本机处理。",
   "minimum_chrome_version": "105",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "host_permissions": ["http://*/*", "https://*/*"],

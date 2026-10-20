@@ -1,8 +1,8 @@
 {
   "name": "reading-cues",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
-  "description": "轻读：本地、克制、可定制的中文阅读提示扩展",
+  "description": "轻读：给中文网页里的词组加浅色标记，可调整颜色和数量，添加个人词语",
   "license": "MIT",
   "engines": { "node": ">=22" },
   "scripts": {

@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION = '0.6.0';
+  const VERSION = '0.6.1';
   if (globalThis.__readingCuesVersion === VERSION) return;
   globalThis.__readingCuesController?.dispose();
   globalThis.__readingCuesVersion = VERSION;
