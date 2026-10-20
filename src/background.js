@@ -1,7 +1,7 @@
 /* Global-by-default MV3 worker. Settings writes are serialized. */
 importScripts('core.js');
 const Core = globalThis.ReadingCues;
-const FILES = ['core.js', 'pos-data.js', 'chunker.js', 'lexicon.js', 'renderer.js', 'content.js'];
+const FILES = ['core.js', 'pos-data.js', 'chunker.js', 'lexicon.js', 'renderer.js', 'reading-aids.js', 'content.js'];
 let queue = Promise.resolve();
 function serialized(task) {
   const result = queue.then(task, task);
@@ -33,8 +33,8 @@ async function injectExistingTabs() {
   for (const tab of tabs) {
     const target = {tabId:tab.id, allFrames:true};
     try {
-      await chrome.scripting.removeCSS({target, files:['highlights.css']});
-      await chrome.scripting.insertCSS({target, files:['highlights.css']});
+      await chrome.scripting.removeCSS({target, files:['highlights.css','aids.css']});
+      await chrome.scripting.insertCSS({target, files:['highlights.css','aids.css']});
       await chrome.scripting.executeScript({target, files:FILES});
     } catch { /* Browser-protected pages stay untouched; no page notifications. */ }
   }
@@ -45,7 +45,7 @@ async function mutate(message) {
   const settings = Core.normalizeSettings(data.settings);
   switch (message.type) {
     case 'settings': {
-      const allowed = ['enabled', 'mode', 'chunkDensity', 'style', 'maxGroups', 'categories', 'wordStep', 'lightColor', 'darkColor', 'intensity', 'colorMode', 'colorSeed'];
+      const allowed = ['enabled', 'mode', 'chunkDensity', 'style', 'maxGroups', 'categories', 'wordStep', 'lightColor', 'darkColor', 'intensity', 'colorMode', 'colorSeed', 'aidMode'];
       const patch = Object.fromEntries(allowed.filter(k => Object.hasOwn(message.patch || {}, k)).map(k => [k, message.patch[k]]));
       await chrome.storage.local.set({settings:Core.normalizeSettings({...settings, ...patch})});
       break;

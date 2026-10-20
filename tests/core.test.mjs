@@ -73,7 +73,7 @@ test('pause returns no matches',()=>assert.deepEqual(marks('不一定。',{enabl
 test('settings normalize untrusted storage and maintain independent defaults',()=>{
   assert.deepEqual(Core.normalizeSettings(null),Core.normalizeSettings());
   const data=Core.normalizeSettings({style:'script',maxGroups:999,categories:['condition','bad'],personal:['词语','词语'],ignored:['<script>']});
-  assert.equal(data.style,'underline');assert.equal(data.maxGroups,0);assert.deepEqual(data.categories,['condition']);assert.deepEqual(data.personal,['词语']);assert.deepEqual(data.ignored,[]);
+  assert.equal(data.style,'background');assert.equal(data.maxGroups,0);assert.deepEqual(data.categories,['condition']);assert.deepEqual(data.personal,['词语']);assert.deepEqual(data.ignored,[]);
 });
 test('import/export roundtrip only includes personal and ignored lists',()=>{
   const raw=Core.exportDictionary({personal:['工作记忆'],ignored:['然而'],sites:['https://private.example/*']});
@@ -119,7 +119,7 @@ test('personal-only and optional logic modes remain distinct from word boundarie
 });
 test('color and segmentation preferences validate storage and cannot inject CSS',()=>{
   const settings=Core.normalizeSettings({lightColor:'red;display:none',darkColor:'#ABCDEF',intensity:999,wordStep:1,mode:'unknown'});
-  assert.equal(settings.lightColor,'#ffc940');assert.equal(settings.darkColor,'#abcdef');assert.equal(settings.intensity,50);assert.equal(settings.wordStep,2);assert.equal(settings.mode,'chunks');
+  assert.equal(settings.lightColor,'#ffc940');assert.equal(settings.darkColor,'#abcdef');assert.equal(settings.intensity,20);assert.equal(settings.wordStep,2);assert.equal(settings.mode,'chunks');
   assert.deepEqual(Core.colorVariables({lightColor:'#102030',intensity:85}),{'--reading-cues-light-rgb':'16 32 48','--reading-cues-dark-rgb':'102 217 196','--reading-cues-opacity':'0.85'});
 });
 test('missing local segmenter falls back only to explicit personal words',()=>{

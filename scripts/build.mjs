@@ -4,10 +4,11 @@ import {fileURLToPath} from 'node:url';
 import {deflateSync} from 'node:zlib';
 import '../src/core.js';
 import '../src/renderer.js';
+import '../src/reading-aids.js';
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dest = path.join(root, 'dist', 'extension');
-const files = ['core.js','chunker.js','renderer.js','content.js','background.js','manifest.json','ui.css','ui-common.js',
-  'popup.html','popup.js','options.html','options.js','demo.html','demo.js','compare.html','compare.js','annotations.js'];
+const files = ['core.js','chunker.js','renderer.js','reading-aids.js','content.js','background.js','manifest.json','ui.css','ui-common.js',
+  'popup.html','popup.js','options.html','options.js','demo.html','demo.js','compare.html','compare.css','compare.js','annotations.js'];
 await mkdir(path.join(dest, 'icons'), {recursive: true});
 const lexicon = JSON.parse(await readFile(path.join(root, 'src', 'lexicon.json'), 'utf8'));
 ReadingCues.validateLexicon(lexicon);
@@ -21,6 +22,7 @@ const calibration=JSON.parse(await readFile(path.join(root,'tests','fixtures','u
 const challenges=JSON.parse(await readFile(path.join(root,'src','data','challenge-passages.json'),'utf8'));
 await writeFile(path.join(dest,'comparison-data.js'),`/* Original examples; the first three are calibration, not held-out evaluation. */\nglobalThis.ReadingCuesComparisonData=${JSON.stringify([...calibration,...challenges])};\n`);
 await writeFile(path.join(dest, 'highlights.css'), ReadingCuesRenderer.cssText);
+await writeFile(path.join(dest, 'aids.css'), ReadingCuesAids.cssText);
 function crc32(data) {
   let crc = 0xffffffff;
   for (const byte of data) { crc ^= byte; for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0); }

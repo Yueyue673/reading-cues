@@ -41,7 +41,7 @@ const launchOptions = {headless:true,...(process.env.READING_CUES_BROWSER_EXECUT
 const highlighted = page => page.evaluate(()=>[...CSS.highlights].flatMap(([name,h])=>[...h].map(r=>({name,text:r.toString(),id:r.startContainer.parentElement.closest('[id]')?.id}))));
 async function installRenderer(page,settings={mode:'cues',style:'background'}){
   for(const name of ['core.js','pos-data.js','chunker.js','lexicon.js','renderer.js'])await page.addScriptTag({path:path.join(dist,name)});
-  await page.evaluate(async config=>{globalThis.renderer=ReadingCuesRenderer.create({settings:config});await renderer.scan();},settings);
+  await page.evaluate(async config=>{globalThis.renderer=ReadingCuesRenderer.create({settings:config});await renderer.scan();},{colorMode:'single',intensity:50,...settings});
 }
 const steady=page=>page.waitForFunction(()=>globalThis.renderer&&!renderer.getSnapshot().busy);
 try{
@@ -74,7 +74,7 @@ try{
     const marks=await highlighted(page);for(const id of ['dynamic','cross','added'])assert.equal(marks.filter(x=>x.id===id).length,0,id);
   });
   await check('style switch, global pause, resume and destroy are reversible',async()=>{
-    await page.evaluate(()=>renderer.setSettings({style:'underline'}));assert.ok((await highlighted(page)).every(x=>x.name==='reading-cues-line'));
+    await page.evaluate(()=>renderer.setSettings({style:'underline',colorMode:'single'}));assert.ok((await highlighted(page)).every(x=>x.name==='reading-cues-line'));
     await page.evaluate(()=>renderer.setSettings({enabled:false}));assert.equal((await highlighted(page)).length,0);
     await page.evaluate(()=>renderer.setSettings({enabled:true}));assert.ok((await highlighted(page)).length>0);
     await page.evaluate(()=>renderer.destroy());assert.equal((await highlighted(page)).length,0);assert.equal(await page.locator('[data-reading-cues-style]').count(),0);
@@ -246,6 +246,7 @@ try{
   await check('comparison page switches between literal user annotations and algorithms without rewriting text',async()=>{
     await page.goto(base+'/compare.html');await page.waitForFunction(()=>globalThis.readingCuesComparison&&!readingCuesComparison.getSnapshot().busy);
     const text=await page.locator('#compare-article').textContent();
+    await page.locator('#more-schemes summary').click();
     await page.locator('[data-plan=personal]').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.includes('10 组'));
     assert.equal((await page.locator('#chosen-pieces').textContent()).includes('介绍城市建筑的画册'),true);
     await page.locator('[data-plan=original]').click();await page.waitForFunction(()=>![...CSS.highlights.values()].some(h=>h.size));assert.equal(await page.locator('#compare-article').textContent(),text);
@@ -256,7 +257,7 @@ try{
   await check('review editor keeps exact occurrences, undo and exported drafts without changing article HTML',async()=>{
     await page.goto(base+'/compare.html');
     const text='🌿完整词组，再次完整词组。<img src=x onerror=alert(1)>';
-    await page.locator('summary').filter({hasText:'也试试自己的文字'}).click();
+    await page.locator('#custom-open').click();assert.equal(await page.locator('#custom-dialog').evaluate(el=>el.open),true);
     await page.locator('#compare-custom').fill(text);await page.locator('#compare-use').click();
     assert.equal(await page.locator('#compare-sample option:checked').textContent(),'我的文字');
     await page.locator('[data-plan=annotate]').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.startsWith('自行标注'));
@@ -264,8 +265,13 @@ try{
     const start=text.lastIndexOf('完整词组');
     await page.locator('#compare-article').evaluate((el,start)=>{const r=new Range();r.setStart(el.firstChild,start);r.setEnd(el.firstChild,start+4);getSelection().removeAllRanges();getSelection().addRange(r);},start);
     await page.locator('#annotation-add').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('1 处'));
-    assert.deepEqual(await page.evaluate(()=>[...CSS.highlights.get('reading-cues-review')].map(r=>[r.startOffset,r.endOffset,r.toString()])),[[start,start+4,'完整词组']]);
-    await page.locator('#annotation-complete').click();assert.ok((await page.locator('#annotation-count').textContent()).includes('已确认完成'));
+    assert.deepEqual(await page.evaluate(()=>[...CSS.highlights].filter(([name])=>name.startsWith('reading-cues-review-')).flatMap(([,h])=>[...h]).map(r=>[r.startOffset,r.endOffset,r.toString()])),[[start,start+4,'完整词组']]);
+    await page.locator('#annotation-complete').click();await page.waitForFunction(()=>document.body.dataset.mode==='compare'&&document.getElementById('compare-status').textContent.startsWith('当前 '));
+    assert.ok((await page.locator('#annotation-count').textContent()).includes('已确认完成'));
+    assert.equal(await page.locator('#compare-mine').textContent(),text);
+    assert.deepEqual(await page.evaluate(()=>[...CSS.highlights].filter(([name])=>name.startsWith('reading-cues-review-')).flatMap(([,h])=>[...h]).map(r=>[r.startContainer.parentElement.id,r.startOffset,r.endOffset])),[['compare-mine',start,start+4]]);
+    assert.ok((await highlighted(page)).filter(r=>!r.name.startsWith('reading-cues-review-')).every(r=>r.id!=='compare-mine'));
+    await page.locator('#annotation-edit').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.startsWith('自行标注'));
     await page.locator('#chosen-pieces button').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('0 处'));
     await page.locator('#annotation-undo').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('1 处'));
     assert.ok((await page.locator('#annotation-count').textContent()).includes('已确认完成'));
@@ -288,10 +294,43 @@ try{
     const light=await count('light'),more=await count('more');assert.ok(more>light,JSON.stringify({light,more}));
     await page.locator('[data-plan=annotate]').click();await page.setViewportSize({width:390,height:844});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-    await page.locator('#compare-article').evaluate(el=>window.scrollTo(0,el.offsetTop+40));
-    const toolbar=await page.locator('#annotation-actions').boundingBox();assert.ok(toolbar.y>=0&&toolbar.y<20);
+    await page.locator('#annotation-actions').scrollIntoViewIfNeeded();
+    const toolbar=await page.locator('#annotation-actions').boundingBox();assert.ok(toolbar.y>=0&&toolbar.y+toolbar.height<=844);
     await page.screenshot({path:path.join(artifacts,'annotation-mobile.png'),fullPage:true});
     await page.setViewportSize({width:1360,height:1000});assert.deepEqual(errors,[]);
+  });
+  await check('studio navigation, paste dialog and keyboard undo follow the reading workflow',async()=>{
+    await page.goto(base+'/compare.html');await page.locator('#sample-next').click();assert.equal(await page.locator('#compare-sample').inputValue(),'1');
+    await page.locator('#sample-previous').click();assert.equal(await page.locator('#compare-sample').inputValue(),'0');assert.equal(await page.locator('#sample-previous').isDisabled(),true);
+    await page.locator('#custom-open').click();assert.equal(await page.locator('#compare-use').isDisabled(),true);await page.keyboard.press('Escape');assert.equal(await page.locator('#custom-dialog').evaluate(el=>el.open),false);
+    await page.locator('[data-plan=annotate]').click();assert.equal(await page.locator('#annotation-undo').isDisabled(),true);
+    await page.locator('#compare-article').evaluate(el=>{const r=new Range();r.setStart(el.firstChild,0);r.setEnd(el.firstChild,4);getSelection().removeAllRanges();getSelection().addRange(r);});
+    await page.waitForFunction(()=>!document.getElementById('annotation-add').disabled);assert.equal(await page.locator('#selected-phrase').textContent(),'周末早上');
+    await page.keyboard.press('Control+Enter');await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('1 处'));
+    await page.keyboard.press('Control+z');await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('0 处'));
+    assert.equal(await page.locator('#annotation-undo').isDisabled(),true);
+    assert.deepEqual(errors,[]);
+  });
+  await check('optional reading aids follow text without modifying it or repeatedly scanning highlights',async()=>{
+    await page.goto(base+'/fixture');await installRenderer(page);
+    await page.addScriptTag({path:path.join(dist,'reading-aids.js')});
+    const original=await page.locator('article').innerHTML();
+    await page.evaluate(()=>{globalThis.aids=ReadingCuesAids.create();aids.setSettings({aidMode:'off'});});
+    assert.equal(await page.locator('[data-reading-cues-aids]').count(),0);
+    await page.evaluate(()=>aids.setSettings({aidMode:'ruler'}));await page.locator('#cross').hover();
+    await page.waitForFunction(()=>document.querySelector('[data-reading-cues-aids]')&&getComputedStyle(document.querySelector('[data-reading-cues-aids]')).visibility==='visible');
+    assert.equal(await page.locator('.reading-cues-ruler').evaluate(el=>getComputedStyle(el).height),'48px');
+    await page.waitForTimeout(1000);const scans=await page.evaluate(()=>renderer.getSnapshot().scans);
+    const box=await page.locator('#cross').boundingBox();for(let i=0;i<30;i++)await page.mouse.move(box.x+25+i,box.y+15);
+    await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>renderer.getSnapshot().scans),scans);
+    await page.evaluate(()=>aids.setSettings({aidMode:'focus'}));await page.locator('#cross').hover();
+    await page.waitForFunction(()=>document.querySelector('[data-reading-cues-aids]')?.dataset.mode==='focus');
+    assert.equal(await page.locator('.reading-cues-shade:visible').count(),4);
+    assert.equal(await page.locator('[data-reading-cues-aids]').evaluate(el=>getComputedStyle(el).pointerEvents),'none');
+    assert.equal(await page.locator('article').innerHTML(),original);
+    await page.locator('#editor').hover();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-reading-cues-aids]')).visibility==='hidden');
+    await page.evaluate(()=>aids.setSettings({enabled:false,aidMode:'focus'}));assert.equal(await page.locator('[data-reading-cues-aids]').count(),0);
+    await page.evaluate(()=>aids.destroy());assert.deepEqual(errors,[]);
   });
   await browser.close();browser=null;
 
@@ -313,7 +352,7 @@ try{
   await check('fresh installation automatically marks two new origins without opening any extension UI',async()=>{
     await waitStatus(s=>s.groups>0&&!s.busy);await waitStatus(s=>s.groups>0&&!s.busy,otherTabId);
     const data=await worker.evaluate(()=>chrome.storage.local.get(['settings','excludedSites']));
-    assert.equal(data.settings.enabled,true);assert.equal(data.settings.mode,'chunks');assert.equal(data.settings.style,'underline');assert.equal(data.settings.maxGroups,0);assert.deepEqual(data.excludedSites,[]);
+    assert.equal(data.settings.enabled,true);assert.equal(data.settings.mode,'chunks');assert.equal(data.settings.style,'background');assert.equal(data.settings.colorMode,'multi');assert.equal(data.settings.intensity,20);assert.equal(data.settings.aidMode,'off');assert.equal(data.settings.maxGroups,0);assert.deepEqual(data.excludedSites,[]);
     assert.deepEqual((await worker.evaluate(()=>chrome.permissions.getAll())).origins.sort(),['http://*/*','https://*/*']);
     assert.equal(await site.locator('article').innerHTML(),original.html);
     await site.screenshot({path:path.join(artifacts,'extension-fixture.png'),fullPage:true,caret:'initial'});
@@ -332,13 +371,14 @@ try{
   await check('strict page CSP allows automatic cues and reload needs no activation',async()=>{
     await site.goto(base+'/fixture-csp');await waitStatus(s=>s.groups>0&&!s.busy);
     assert.equal(await site.locator('[data-reading-cues-style]').count(),0);
-    assert.ok((await site.locator('#cross').evaluate(el=>getComputedStyle(el,'::highlight(reading-cues-light)').backgroundColor)).includes('0.5'));
+    assert.ok((await site.locator('#cross').evaluate(el=>getComputedStyle(el,'::highlight(reading-cues-multi-0)').backgroundColor)).includes('0.2'));
     await site.reload();await waitStatus(s=>s.groups>0&&!s.busy);
     await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
   });
   await check('mode, custom colors and intensity persist and apply under strict CSP',async()=>{
     assert.equal(await options.locator('#reading-mode').inputValue(),'chunks');
     await options.locator('[name=style][value=background]').check();
+    await options.locator('#color-mode').selectOption('single');
     assert.equal(await options.locator('.palette button').count(),6);
     await options.locator('#light-color').fill('#ff66cc');await options.locator('#light-color').dispatchEvent('change');
     await options.locator('#dark-color').fill('#aa77ff');await options.locator('#dark-color').dispatchEvent('change');
@@ -349,6 +389,17 @@ try{
     await options.reload();assert.equal(await options.locator('#light-color').inputValue(),'#ff66cc');assert.equal(await options.locator('#intensity').inputValue(),'75');
     await options.locator('#reading-mode').selectOption('personal');await waitStatus(s=>s.groups===0&&!s.busy);
     await options.locator('#reading-mode').selectOption('words');await waitStatus(s=>s.groups>0&&!s.busy);
+    await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
+  });
+  await check('optional focus aid works under strict CSP and global pause removes its overlay',async()=>{
+    await site.goto(base+'/fixture-csp');await waitStatus(s=>s.groups>0&&!s.busy);
+    await send({type:'settings',patch:{aidMode:'focus'}});await site.locator('#cross').hover();
+    await site.waitForFunction(()=>document.querySelector('[data-reading-cues-aids]')&&getComputedStyle(document.querySelector('[data-reading-cues-aids]')).visibility==='visible');
+    assert.equal(await site.locator('[data-reading-cues-aids]').evaluate(el=>getComputedStyle(el).position),'fixed');
+    assert.equal(await site.locator('.reading-cues-shade').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(12, 25, 18, 0.25)');
+    assert.equal(await site.locator('[data-reading-cues-style]').count(),0);
+    await send({type:'settings',patch:{enabled:false}});await site.waitForFunction(()=>!document.querySelector('[data-reading-cues-aids]'));
+    await send({type:'settings',patch:{enabled:true,aidMode:'off'}});await waitStatus(s=>s.groups>0&&!s.busy);
     await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
   });
   await check('per-site pause persists across navigation while other origins stay automatic',async()=>{

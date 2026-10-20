@@ -6,9 +6,9 @@
     explanation:'解释、举例与归纳', quantity:'数值、日期与时长', concept:'完整概念'});
   const CATEGORIES = Object.keys(CATEGORY_LABELS);
   const DEFAULTS = Object.freeze({
-    enabled: true, mode: 'chunks', chunkDensity: 'balanced', style: 'underline', maxGroups: 0, wordStep: 2,
-    lightColor: '#ffc940', darkColor: '#66d9c4', intensity: 50,
-    colorMode: 'single', colorSeed: 1,
+    enabled: true, mode: 'chunks', chunkDensity: 'balanced', style: 'background', maxGroups: 0, wordStep: 2,
+    lightColor: '#ffc940', darkColor: '#66d9c4', intensity: 20,
+    colorMode: 'multi', colorSeed: 1, aidMode: 'off',
     categories: Object.freeze([...CATEGORIES]), personal: Object.freeze([]), ignored: Object.freeze([])
   });
   const LIMITS = Object.freeze({ terms: 300, termLength: 40, importBytes: 100000, paragraph: 8000 });
@@ -32,6 +32,7 @@
       mode: ['chunks', 'words', 'cues', 'personal'].includes(raw.mode) ? raw.mode : DEFAULTS.mode,
       chunkDensity: ['light','balanced','more'].includes(raw.chunkDensity) ? raw.chunkDensity : DEFAULTS.chunkDensity,
       style: ['background', 'underline', 'bold', 'bold-underline'].includes(raw.style) ? raw.style : DEFAULTS.style,
+      aidMode: ['off', 'ruler', 'focus'].includes(raw.aidMode) ? raw.aidMode : DEFAULTS.aidMode,
       wordStep: [2,3,4].includes(raw.wordStep) ? raw.wordStep : DEFAULTS.wordStep,
       lightColor: /^#[0-9a-f]{6}$/i.test(raw.lightColor) ? raw.lightColor.toLowerCase() : DEFAULTS.lightColor,
       darkColor: /^#[0-9a-f]{6}$/i.test(raw.darkColor) ? raw.darkColor.toLowerCase() : DEFAULTS.darkColor,

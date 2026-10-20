@@ -1,9 +1,68 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>轻读 · 标记对照</title><link rel="stylesheet" href="ui.css"><script src="core.js" defer></script><script src="pos-data.js" defer></script><script src="chunker.js" defer></script><script src="lexicon.js" defer></script><script src="comparison-data.js" defer></script><script src="renderer.js" defer></script><script src="annotations.js" defer></script><script src="compare.js" defer></script></head>
-<body><main class="page">
-  <header data-reading-cues-ignore><div class="brand"><img src="icons/48.png" alt=""><div><b>轻读</b><small>READING CUES</small></div></div><h1 style="margin-top:25px">先看标记是否合适。</h1><p>固定下划线，只比较选词和边界。新版“意义块”是候选方案，尚未验证阅读效果。</p><label class="stack" for="compare-sample">选择段落<select id="compare-sample"></select></label><p class="hint" id="sample-note"></p><div class="compare-toolbar" role="group" aria-label="标记方案"><button data-plan="original" aria-pressed="false">原文</button><button data-plan="words" aria-pressed="false">旧版分词</button><button data-plan="chunks" aria-pressed="true">新候选</button><button data-plan="personal" id="manual-plan" aria-pressed="false">上一轮标注</button><button data-plan="annotate" aria-pressed="false">我来标注</button></div><label class="compare-density" for="compare-density">新候选密度<select id="compare-density"><option value="light">轻量</option><option value="balanced" selected>均衡</option><option value="more">较多</option></select></label><p id="compare-status" class="status" role="status"></p></header>
-  <div id="annotation-actions" class="compare-toolbar" data-reading-cues-ignore role="group" aria-label="标注操作" hidden><button id="annotation-add" class="primary" disabled>加入标注</button><button id="annotation-undo">撤销上一步</button><span class="hint">也可按 Ctrl / ⌘ + Enter 加入</span></div>
-  <article class="comparison-article" id="compare-article" aria-label="对照文字" tabindex="0"></article>
-  <section id="annotation-panel" class="card" data-reading-cues-ignore hidden><p>标完后点“本段标注完成”，再切换新候选比较。点下方片段可移除，撤销可恢复。</p><div class="compare-toolbar"><button id="annotation-complete">本段标注完成</button><button id="annotation-clear">清空本段</button></div><p id="annotation-count" class="hint"></p><div class="compare-toolbar"><button id="annotation-copy" disabled>复制本段标注</button><button id="annotation-export" disabled>导出全部标注</button></div><p class="hint">标注仅在本页暂存，刷新会清除。导出可保留记录；不会自动上传或改动插件词库。也可确认本段无需任何标记。</p><p id="annotation-status" class="status" role="status"></p></section>
-  <section data-reading-cues-ignore class="card"><h2>当前标记的完整片段</h2><div id="chosen-pieces" class="marked-list"></div><p class="hint">先看是否拆散意思、漏掉动作或标得太满。读得更快、理解更好和看着舒服需要分别观察。</p><details><summary>也试试自己的文字</summary><label for="compare-custom">只在本页处理，刷新后清除</label><textarea id="compare-custom" style="width:100%" rows="4" maxlength="8000"></textarea><button id="compare-use">放到上方比较</button></details></section>
-  <footer data-reading-cues-ignore style="margin-top:25px"><p>前三段包含使用者提供的标注，属于校准样例。其余段落没有使用者标注，不作为“最佳算法”的证明。同文切换适合看差异；评估理解时，应轮换不同但难度相近的文章，避免重读记忆影响。</p><a href="demo.html">样式与颜色试读</a> · <a href="options.html">插件设置</a></footer>
-</main></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>轻读 · 阅读工作台</title>
+  <link rel="stylesheet" href="ui.css"><link rel="stylesheet" href="compare.css"><link rel="stylesheet" href="aids.css">
+  <script src="core.js" defer></script><script src="pos-data.js" defer></script><script src="chunker.js" defer></script><script src="lexicon.js" defer></script><script src="comparison-data.js" defer></script><script src="renderer.js" defer></script><script src="reading-aids.js" defer></script><script src="annotations.js" defer></script><script src="compare.js" defer></script>
+</head>
+<body class="studio">
+  <svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"/></symbol>
+    <symbol id="i-mark" viewBox="0 0 24 24"><path d="m14 3 7 7-9 9H5v-7L14 3ZM11 6l7 7M3 22h18"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="m15 4 5 5M4 15 16 3l5 5L9 20l-6 1 1-6Z"/></symbol>
+    <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></symbol>
+    <symbol id="i-paste" viewBox="0 0 24 24"><path d="M8 5H5a2 2 0 0 0-2 2v13h13v-3M9 3h12v13H9zM12 7h6m-6 4h6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="m8 4-5 5 5 5M3 9h10a7 7 0 0 1 0 14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  </defs></svg>
+  <div class="studio-shell">
+    <aside class="studio-sidebar" aria-label="素材与导出" data-reading-cues-ignore>
+      <div class="studio-brand" aria-label="轻读阅读工作台"><img src="icons/48.png" alt=""><span><b>轻读<span class="brand-dot">.</span></b><small>READING CUES</small></span></div>
+      <section class="rail-material">
+        <div class="rail-heading"><label for="compare-sample">阅读素材</label><span id="sample-position">01 / 10</span></div>
+        <select id="compare-sample"></select>
+        <div class="material-navigation"><button id="sample-previous" aria-label="上一段"><span aria-hidden="true">←</span> 上一段</button><button id="sample-next" aria-label="下一段">下一段 <span aria-hidden="true">→</span></button></div>
+        <button id="custom-open" class="paste-button" aria-label="粘贴自己的文字"><svg class="ui-icon" aria-hidden="true"><use href="#i-paste"/></svg><span class="paste-full">粘贴自己的文字</span><span class="paste-short" aria-hidden="true">粘贴</span></button>
+        <p id="sample-note" class="rail-note"></p>
+      </section>
+      <details class="rail-aids"><summary>视线辅助 <span>可选</span></summary><label for="studio-aid">选择一种方式<select id="studio-aid"><option value="off">关闭</option><option value="ruler">阅读尺</option><option value="focus">段落聚焦</option></select></label><p>开启后，移动到正文即可试用。</p></details>
+      <section class="rail-guide" aria-label="使用提示"><span class="guide-label">一个小小的阅读实验</span><h2>找到你觉得<br>顺的读法。</h2><ol><li>先读一遍，感受标记。</li><li>选出你想一起读的词组。</li><li>把你的读法和自动标记对照。</li></ol><a href="demo.html">也试试颜色与样式 <span aria-hidden="true">↗</span></a></section>
+      <section class="rail-footer" aria-label="保留标注"><div class="session-heading"><span>本次标注</span><span id="session-count">尚未开始</span></div><button id="annotation-export" class="export-button" disabled><svg class="ui-icon" aria-hidden="true"><use href="#i-download"/></svg>导出标注文件</button><button id="annotation-copy" class="copy-button" disabled>复制本段标注</button><p>只在本页暂存。刷新前请导出，<br>保留你的标注记录。</p><p id="annotation-status" class="status" role="status"></p></section>
+    </aside>
+
+    <main class="studio-main">
+      <header class="studio-header" data-reading-cues-ignore><div><p class="studio-eyebrow"><span></span>你的阅读工作台</p><h1>读得顺一点。</h1><p class="studio-description">试一段文字，看看怎样标记更适合你。</p></div><a class="quiet-link" href="options.html">插件设置 <span aria-hidden="true">↗</span></a></header>
+      <section class="workspace" aria-label="试读与标注">
+        <div class="reading-toolbar" data-reading-cues-ignore>
+          <div class="mode-switch" role="group" aria-label="阅读方式">
+            <button data-plan="original" aria-pressed="false"><svg class="ui-icon" aria-hidden="true"><use href="#i-book"/></svg>原文</button>
+            <button data-plan="chunks" aria-pressed="true"><svg class="ui-icon" aria-hidden="true"><use href="#i-mark"/></svg>自动标记</button>
+            <button data-plan="annotate" aria-pressed="false"><svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"/></svg>自己标注</button>
+            <button data-plan="compare" id="review-plan" aria-pressed="false" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-columns"/></svg>对照</button>
+          </div>
+          <div class="toolbar-options"><label id="density-control" for="compare-density">标记多少<select id="compare-density"><option value="light">少一些</option><option value="balanced" selected>适中</option><option value="more">多一些</option></select></label><details id="more-schemes" class="more-schemes"><summary>更多对照 <span aria-hidden="true">⌄</span></summary><div class="scheme-menu"><button data-plan="words" aria-pressed="false">旧版逐词标记</button><button data-plan="personal" id="manual-plan" aria-pressed="false">最初的参考标注</button></div></details></div>
+        </div>
+        <div class="reading-intro" data-reading-cues-ignore><span id="mode-instruction">先读一遍，感受词组边界。</span><span id="mode-caption"></span></div>
+        <div id="paper-grid" class="paper-grid">
+          <section class="reading-sheet">
+            <header class="sheet-heading" data-reading-cues-ignore><div><span id="material-tag" class="material-tag">初始示例 · 01</span><h2 id="sample-title">日常叙述</h2></div><span id="text-length" class="text-length"></span></header>
+            <div id="auto-label" class="comparison-label" data-reading-cues-ignore hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-mark"/></svg>自动标记</div>
+            <article id="compare-article" class="comparison-article" aria-label="试读正文" tabindex="0"></article>
+            <div id="annotation-actions" class="annotation-dock" data-reading-cues-ignore role="group" aria-label="标注操作" hidden><div class="selection-summary"><span id="selection-label">先选中一个词组</span><strong id="selected-phrase">拖选正文中的文字</strong></div><button id="annotation-add" class="primary" disabled><span aria-hidden="true">＋</span>标记</button><button id="annotation-undo" class="icon-button" title="撤销上一步（Ctrl / ⌘ + Z）" aria-label="撤销上一步" disabled><svg class="ui-icon" aria-hidden="true"><use href="#i-undo"/></svg></button></div>
+            <footer class="sheet-footer" data-reading-cues-ignore><span id="compare-status" role="status">正在准备…</span><span id="reading-footnote">原文与换行保持不变</span></footer>
+          </section>
+          <section id="own-sheet" class="reading-sheet own-sheet" data-reading-cues-ignore hidden><header class="sheet-heading"><div><span class="material-tag">你的读法</span><h2>你的标注</h2></div><button id="annotation-edit" class="text-button">继续修改 <span aria-hidden="true">↗</span></button></header><div class="comparison-label"><svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"/></svg><span id="own-review-state">草稿</span></div><article id="compare-mine" class="comparison-article" aria-label="你的标注正文" data-reading-cues-aid-allow></article><p id="mine-empty" class="empty-review" hidden>你选择让这段保持原文。</p></section>
+        </div>
+        <section id="annotation-panel" class="finish-panel" data-reading-cues-ignore hidden><div><p id="annotation-count">本段 0 处 · 尚未确认完成</p><span>还可以继续选词；点下方词组可移除。</span></div><div class="finish-actions"><button id="annotation-clear" class="text-button" disabled>清空本段</button><button id="annotation-complete" class="primary">完成，看看对比<svg class="ui-icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></section>
+        <details id="pieces-details" class="pieces-panel" open data-reading-cues-ignore><summary><span id="pieces-heading">标记的词组</span><span id="pieces-count" class="pieces-count">0 处</span><span class="pieces-chevron" aria-hidden="true">⌄</span></summary><div id="chosen-pieces" class="marked-list"></div><p id="pieces-empty" class="pieces-empty" hidden>这里会列出你标记的词组。</p></details>
+      </section>
+      <footer class="studio-footer" data-reading-cues-ignore><span><i class="local-dot"></i>本地处理，不上传文字</span><details id="studio-help"><summary>关于这次试读</summary><p>自动标记是试验方案，仍会选错。最初三段是参与过调规则的示例，其余文字也用于开发检查。标得更符合偏好，不代表阅读理解已经改善。</p><p>你可以先自行标注，再切换到自动标记比较。标注只在本页暂存，刷新会清除；复制和导出由你主动点击，不会自动写入插件词库。</p><a href="demo.html">样式与颜色</a><span aria-hidden="true"> · </span><a href="https://github.com/Yueyue673/reading-cues" target="_blank" rel="noreferrer">开源项目 ↗</a></details></footer>
+    </main>
+  </div>
+  <dialog id="custom-dialog" class="custom-dialog" aria-labelledby="custom-title"><div class="dialog-heading"><div><span class="studio-eyebrow">自己的文字，也可以</span><h2 id="custom-title">读一段你关心的内容。</h2></div><button id="custom-close" class="icon-button" aria-label="关闭粘贴窗口"><svg class="ui-icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><label for="compare-custom">粘贴一小段文字</label><textarea id="compare-custom" rows="7" maxlength="8000" placeholder="文章、评论，或一段总要反复看的说明……"></textarea><div class="dialog-meta"><span>只在本页处理，文字不会上传。</span><span id="custom-length">0 / 8000</span></div><p id="custom-error" class="status error" role="alert"></p><div class="dialog-actions"><button id="custom-cancel" class="text-button">取消</button><button id="compare-use" class="primary" disabled>开始试读<svg class="ui-icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></dialog>
+</body>
+</html>

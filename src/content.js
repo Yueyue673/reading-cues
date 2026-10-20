@@ -1,11 +1,11 @@
 (() => {
   'use strict';
-  const VERSION = '0.5.0';
+  const VERSION = '0.6.0';
   if (globalThis.__readingCuesVersion === VERSION) return;
   globalThis.__readingCuesController?.dispose();
   globalThis.__readingCuesVersion = VERSION;
   const core = globalThis.ReadingCues;
-  let renderer, revision = 0, topPattern;
+  let renderer, aids, revision = 0, topPattern;
   const pageContext = chrome.runtime.sendMessage({type:'page-context'}).then(result => {
     topPattern = result?.topPattern;
   }).catch(() => {});
@@ -20,8 +20,11 @@
       settings.enabled = core.isSiteEnabled(location.href, settings, data.excludedSites || [], topPattern || location.href);
       if (!renderer && settings.enabled) renderer = globalThis.ReadingCuesRenderer.create({settings, managedStyles:true});
       await renderer?.setSettings(settings);
+      if (ticket !== revision) return;
+      if (!aids && settings.enabled) aids = ReadingCuesAids.create({managedStyles:true});
+      aids?.setSettings(settings);
     } catch {
-      renderer?.destroy(); renderer = null;
+      renderer?.destroy(); aids?.destroy(); renderer = aids = null;
     }
   }
   const storageListener = (changes, area) => {
@@ -36,7 +39,7 @@
   chrome.runtime.onMessage.addListener(messageListener);
   globalThis.__readingCuesGetStatus = getStatus;
   globalThis.__readingCuesController = {dispose() {
-    revision++; renderer?.destroy();
+    revision++; renderer?.destroy(); aids?.destroy();
     chrome.storage.onChanged.removeListener(storageListener);
     chrome.runtime.onMessage.removeListener(messageListener);
   }};

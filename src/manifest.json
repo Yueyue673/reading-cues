@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "轻读 · Reading Cues",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "本地中文意义块候选与阅读提示，默认下划线，支持开放评论组件、个人词组和稳定可选多色。",
   "minimum_chrome_version": "105",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "content_scripts": [{
     "matches": ["http://*/*", "https://*/*"],
-    "js": ["core.js", "pos-data.js", "chunker.js", "lexicon.js", "renderer.js", "content.js"],
-    "css": ["highlights.css"],
+    "js": ["core.js", "pos-data.js", "chunker.js", "lexicon.js", "renderer.js", "reading-aids.js", "content.js"],
+    "css": ["highlights.css", "aids.css"],
     "run_at": "document_idle",
     "all_frames": true
   }],

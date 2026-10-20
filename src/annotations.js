@@ -30,6 +30,7 @@
     const get=text=>samples.has(text)?copy(samples.get(text)):{spans:[],reviewed:false};
     return Object.freeze({
       add,get,
+      canUndo(text){return !!samples.get(text)?.history.length;},
       remove(text,start,end){const s=samples.get(text);if(s&&s.spans.some(x=>x.start===start&&x.end===end))update(s,{spans:s.spans.filter(x=>x.start!==start||x.end!==end),reviewed:false});},
       clear(text){const s=samples.get(text);if(s&&(s.spans.length||s.reviewed))update(s,{spans:[],reviewed:false});},
       undo(text){const s=samples.get(text);if(s?.history.length)Object.assign(s,s.history.pop());},

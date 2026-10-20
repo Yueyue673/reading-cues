@@ -37,10 +37,10 @@ test('personal phrases longer than automatic chunks stay intact',()=>{
   const term='这是一个由用户明确指定需要完整保留的个人词组';assert.ok(pieces(term,{personal:[term]}).includes(term));
 });
 test('color allocation is deterministic and independent of annotation density',()=>{
-  assert.equal(Core.normalizeSettings().style,'underline');assert.equal(Core.normalizeSettings().colorMode,'single');
+  assert.equal(Core.normalizeSettings().style,'background');assert.equal(Core.normalizeSettings().colorMode,'multi');assert.equal(Core.normalizeSettings().intensity,20);assert.equal(Core.normalizeSettings({aidMode:'evil'}).aidMode,'off');
   for(const text of ['提前一天申请','空气会逐渐减少','城市建筑'])assert.equal(Core.colorIndex(text,123),Core.colorIndex(text,123));
   assert.ok(new Set(['公交车','植物','服务台','费用','材料','空气'].map(t=>Core.colorIndex(t,123))).size>1);
-  assert.equal(Core.normalizeSettings({colorSeed:-1,colorMode:'evil'}).colorMode,'single');
+  assert.equal(Core.normalizeSettings({colorSeed:-1,colorMode:'evil'}).colorMode,'multi');
 });
 test('calibration annotations stay separate from general regression examples',()=>{
   const data=JSON.parse(readFileSync(new URL('./fixtures/user-annotations.json',import.meta.url),'utf8'));

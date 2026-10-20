@@ -1,67 +1,73 @@
-# 轻读 · Reading Cues
+<div align="center">
+  <img src="docs/assets/mark.svg" width="58" height="58" alt="轻读标志">
+  <h1>轻读 · Reading Cues</h1>
+  <p>给中文网页里的完整词组，加一点阅读线索。</p>
+  <p><a href="https://github.com/Yueyue673/reading-cues/releases/latest">下载扩展</a> · <a href="#安装">安装方法</a> · <a href="README.en.md">English</a></p>
+  <p><a href="https://github.com/Yueyue673/reading-cues/actions/workflows/check.yml"><img src="https://github.com/Yueyue673/reading-cues/actions/workflows/check.yml/badge.svg" alt="自动检查状态"></a> <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-315e4b?style=flat-square" alt="MIT 许可"></a></p>
+</div>
 
-**按自己的节奏读，让标记慢慢适合你。**
+![轻读：浅色词组提示与阅读工作台](docs/assets/cover.png)
 
-桌面 Chrome / Edge 的本地中文阅读辅助扩展。安装授权后，普通 HTTP / HTTPS 网页全局自动工作，不必逐站开启，没有网页浮窗、模型费用或阅读追踪。
+## 为什么做轻读
 
-**[下载 v0.5.0](https://github.com/Yueyue673/reading-cues/releases/latest) · [本轮修正](docs/ITERATION-0.5.md) · [标注与算法](docs/ANNOTATION-DESIGN.md) · [验证记录](docs/VALIDATION.md)**
+有些文字，单个字都认识，连在一起却容易丢掉线索。轻读从词组开始：在原文上加一点标记，再根据你的反馈调整边界、颜色和数量。
 
-![轻读试读](docs/preview.png)
+默认是**最浅一档的随机多色底色（20%）**。同一个词组保持同色，滚动时不会重新随机。装好并授权后，普通网页自动运行。
 
-## 这次改进
+所有处理都在本地完成，没有模型调用费。阅读尺和段落聚焦可以按需开启，也可以一直关闭。
 
-- **先修改变意思的边界**：让“并不稳定”“不能自动通过”、金额、百分比、单位和常见日期时刻一起保留；区分“降低了20元”和“降低到20元”，减少悬空修饰成分。仍是有长度限制的浅层规则，不是完整语义解析。
-- **直接标注下一轮偏好**：在对照页点“我来标注”，拖选正文加入片段；支持移除、撤销、确认完成、复制与 JSON 导出。同一词的不同出现位置分别记录，草稿和确认状态区分。仅当前页暂存，刷新后清除；不会自动上传或学习。
-- **同时比较密度**：固定下划线，切换轻量 / 均衡 / 较多。窄屏滚动时标注操作条保持可见。另增否定、数值和日期边界检查材料。[问题、研究与边界](docs/ITERATION-0.5.md)
-- **从逐词交替改为结构候选**：根据使用者提供的 31 个标注，尝试保留完整时间、修饰语、动作与状态。界面明确标为“意义块（试验）”，有轻量 / 均衡 / 较多三档。它仍会选错，不代表已理解文章。
-- **同文对照**：包内 `compare.html` 可切换原文、旧分词、新候选和上一轮原标注，还可试新题材与边界检查文字，或粘贴自己的文字。上一轮参考不被新标注覆盖。
-- **默认下划线**：新增描边式加重、加重＋下划线；底色继续可用。加重通过绘制让字看起来更重，保留原有字号与换行，不等同于字体的 `font-weight`。
-- **可选稳定多色**：六种色彩，按词组稳定分配。相同词组同色，滚动和重扫不换色；主动“换一组”才重新分配。默认单色，颜色不表示重要程度，也不增加标记数量。
-- **开放评论组件**：支持嵌套开放 Shadow DOM、动态回复和延迟挂载。已用实际扩展检查一个 B 站公开视频页的评论与楼中楼；用户名、按钮、评论输入框等保持原样。
-- **稳定更新**：保留原生高亮与未变的文字范围；局部文本更新不清空整页；滚动、鼠标和视频更新的回归检查继续保留。
+## 用起来是什么样
 
-原逐词分界、374 条原创逻辑 / 数值 / 概念规则、仅个人词库仍可选择。内置 MIT 词性数据在本地提供结构提示，没有大模型、遥测或运行时联网词库。
+| 你想做的事 | 轻读里的操作 |
+| --- | --- |
+| 看清网页中的词组 | 自动加浅色底色，也可改成下划线或加重 |
+| 提示太密、太花 | 减少标记数量，或切换单色 |
+| 某个词总想一起读 | 选中文字，右键加入个人词库 |
+| 阅读时需要定位 | 试试阅读尺或段落聚焦，一次开启一种 |
+| 觉得自动选词不合适 | 在工作台自己标注，再与自动结果对照 |
 
-## 安装与更新
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/workbench-dark.png">
+  <img src="docs/assets/workbench.png" alt="工作台：左侧换素材，中间试读，顶部切换原文、自动标记和自己标注">
+</picture>
 
-1. 从 [Releases](https://github.com/Yueyue673/reading-cues/releases/latest) 下载 `reading-cues-0.5.0.zip`，完整解压到固定目录。
-2. Chrome 打开 `chrome://extensions`；Edge 打开 `edge://extensions`。
-3. 开启**开发者模式** → **加载已解压的扩展程序** → 选择含 `manifest.json` 的目录。
-4. 完成浏览器网站访问授权，打开普通网页即可自动工作；已有页面刷新一次。
+工作台里，选中文字后点“标记”；完成后直接看对照。可以撤销、继续修改，最后复制或导出标注。自己的标注与自动结果分别保留。
 
-升级：可先导出个人词库备份，用新包覆盖原目录，点击扩展管理页**重新加载**，再刷新文章页。个人词、忽略词、样式与暂停设置保留；原逐词模式迁移到意义块候选，仍可切回。新安装默认下划线，已经保存的样式继续保留。v0.4 没有新增权限。
+![自动标记与个人标注的双栏对照](docs/assets/comparison.png)
 
-从 v0.1 升级还会从逐站白名单改为全局访问，浏览器可能要求确认权限。手动加载的包不会自行更新。尚未上架商店，安卓、Firefox 和 Safari 未适配。
+## 安装
 
-不用安装也可试：双击包内 `compare.html` 比较算法，或 `demo.html` 比较样式与颜色。
+目前提供桌面 **Chrome / Edge** 的手动安装包，尚未上架扩展商店。
 
-## 根据自己的反馈微调
+1. 在 [Releases](https://github.com/Yueyue673/reading-cues/releases/latest) 下载 `reading-cues-0.6.0.zip`，完整解压到固定目录。
+2. 打开 `chrome://extensions` 或 `edge://extensions`，开启“开发者模式”。
+3. 点“加载已解压的扩展程序”，选择包含 `manifest.json` 的目录。
+4. 确认网站访问权限，刷新已有网页即可。
 
-选中 2–40 字的完整词组 → 右键 **轻读：以后提示…**，可补充或纠正个人词组。个人词组每次出现都优先保留；忽略列表覆盖全部模式。设置页支持添加、移除与 JSON 备份，导入不改变网站或权限。
+想先试读：双击包内 `compare.html` 打开工作台，或用 `demo.html` 试样式。无需上传文章。
 
-单色下划线跟随文字色。稳定多色下划线使用更适合亮 / 暗背景的配色；底色可自由取色，强度 20–85%，必要时配深浅文字色。图片背景用清楚的下划线。颜色、密度与加重分开试，避免一次改动太多。
+更新时用新包覆盖原目录，在扩展管理页重新加载，再刷新网页。个人词库和已有显示偏好会保留；想切到这版默认配色，可在设置里点“使用最浅的随机多色”。手动安装不会自动更新。
 
-全局默认运行，必要时可暂停一个网站或全部。站点暂停按协议和域名保存，覆盖其普通嵌入页，不自动包含子域名；浏览器匹配不能区分端口。浏览器自身访问限制优先，无痕窗口许可也由浏览器设置控制。
+## 目前的范围
 
-## 如何理解这轮结果
+- 支持普通 HTTP / HTTPS 网页、嵌入页和开放评论组件；B 站评论曾在一个公开视频页实测。
+- 不支持 PDF、图片文字、关闭的影子树和浏览器保护页。安卓、Firefox、Safari 尚未适配。
+- 选词仍是试验规则，复杂句、专名和繁体会有错误。没有证据表明它对所有 ADHD 或阅读困难读者都有效。
 
-在三段参与调规则的校准文字中，共 31 个标注片段：旧算法 4 个起止边界完全一致，新候选均衡档为 24 个。**这不是新文章准确率，更不是阅读理解提升。** 标注中的“不需要重新”原样保留供比较，新候选会尝试补全到完整动作，差异仍计为不一致。
+网页正文不上传。插件设置和个人词库保存在本机；工作台标注仅在当前页暂存，刷新前请导出。[隐私说明](PRIVACY.md)
 
-新段落仍有误选和遗漏。我们没有宣布“最佳算法”；同文切换只适合看差异，实际理解应轮换不同、难度相近的文章，检查未标内容和阅读负担。[算法推断与完整校准表](docs/ANNOTATION-DESIGN.md) · [试用方法](docs/TRYOUT.md)
+## 一起改进
 
-中文词界、视觉提示与 ADHD 阅读研究存在不同结果。正确词界、稳定显示和个性化值得检验，但不能由规则数量或工程测试推出辅助效果。[研究与反面证据](docs/RESEARCH-REVIEW-0.3.md)
+不必会写代码。给出一句能复现问题的短文、实际标记和你希望的边界，就能帮助下一轮调整。请先改写私人内容。
 
-## 已知边界
+[报告误标](https://github.com/Yueyue673/reading-cues/issues/new?template=incorrect-cue.yml) · [报告兼容或体验问题](https://github.com/Yueyue673/reading-cues/issues/new?template=compatibility.yml) · [贡献说明](CONTRIBUTING.md)
 
-- 主要面向简体中文。静态词性、词频分词和有限构式不是完整句法分析；复杂从句、否定范围、专名、繁体和口语仍需评估。个人词组和旧分词方案可用。
-- 支持普通网页、普通 HTTP / HTTPS iframe 和开放 Shadow DOM。关闭的影子树、PDF、图片文字、浏览器内置页与商店保护页未支持。
-- 编辑器、代码、导航、链接、标题、作者已有语义强调、动态通知与媒体控件保持原样。B 站支持已经历一个公开视频页实测，不代表所有页面、账号状态或播放器均已验证。
-- 自动意义块最多 18 个 UTF-16 单元，个人词组可更长；每连续块最多 8,000 单元。每文档最多约 300,000 单元、60,000 遍历节点、6,000 组标记、2,048 个开放影子树。超限只处理部分内容。
-- 词性数据在第一次需要时分批初始化；页面仍可能因自身脚本、复杂布局或不同显卡产生兼容问题。对比度保护不等于整站无障碍认证。
+想了解选词依据，可以看[标注与算法](docs/ANNOTATION-DESIGN.md)、[研究记录](docs/RESEARCH.md)和[验证记录](docs/VALIDATION.md)。未来功能与取舍放在[路线](docs/ROADMAP.md)里。
 
-## 开发
+<details>
+<summary>本地开发</summary>
 
-Node.js 22+：
+需要 Node.js 22+。
 
 ```sh
 npm ci
@@ -69,30 +75,18 @@ npm test
 npm run build
 npx playwright install --with-deps chromium
 npm run test:browser
-node scripts/evaluate-annotations.mjs
 npm run package
 npm run preview
 ```
 
-只构建可离线运行 `node scripts/build.mjs`，加载目录为 `dist/extension/`，安装包输出在 `dist/`。校准比较不会自动当作 CI 的阅读效果门槛。
+构建结果在 `dist/extension/`，安装包在 `dist/`。也可以离线运行 `node scripts/build.mjs`。`node scripts/capture-preview.mjs` 生成文档截图，需先安装 Playwright Chromium。
 
-```text
-src/chunker.js       本地浅层结构候选、边界与密度
-src/data/pos.tsv     jieba (MIT) 词性提示精简集
-src/core.js          设置、个人词组、旧算法、稳定配色
-src/renderer.js      范围复用、开放影子树、样式与资源上限
-src/lexicon.json     374 条原创逻辑 / 数值 / 概念规则
-src/background.js   设置写入、迁移与已有页面注入
-src/compare.*       标注与算法的离线对照
-tests/              语言反例、迁移、构式与浏览器回归
-```
+修改选词前请阅读[贡献说明](CONTRIBUTING.md)。校准样例、工程检查和阅读效果是三件不同的事；不要用测试数量代替实际体验。
 
-## English
+</details>
 
-Reading Cues is a local Chinese reading-assistance experiment for desktop Chromium. Version 0.5 repairs attached negation and numeric boundaries and adds an offline annotation editor with exact offsets, undo, draft/review states and explicit JSON export. Default underlines, optional stable colors and open-shadow comments remain supported. The phrase heuristic uses a compact MIT-licensed POS dictionary, not an LLM or a full parser. Calibration agreement is not held-out accuracy or reading effectiveness. No telemetry or runtime network requests.
+## 许可与致谢
 
-## 许可
+代码、原创规则和文档采用 [MIT](LICENSE)。本地词性数据来自 jieba，保留其 [MIT 许可](licenses/jieba-MIT.txt)与[来源记录](docs/POS-SOURCE.md)。
 
-[MIT](LICENSE)。原创代码、规则、例句与文档使用本项目许可；jieba 词性数据保留 [上游 MIT 许可](licenses/jieba-MIT.txt) 与 [来源记录](docs/POS-SOURCE.md)。未捆绑 Chinese-DiMLex。开发依赖保留各自许可。
-
-[隐私](PRIVACY.md) · [贡献](CONTRIBUTING.md) · [路线](docs/ROADMAP.md) · [反馈](https://github.com/Yueyue673/reading-cues/issues)
+文档入口和产品展示参考了 [Voyager](https://github.com/voyager-crew/voyager)。界面、文案和封面按轻读的用途重新设计。
