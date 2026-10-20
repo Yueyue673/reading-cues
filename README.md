@@ -2,7 +2,7 @@
   <img src="docs/assets/mark.svg" width="58" height="58" alt="轻读标志">
   <h1>轻读 · Reading Cues</h1>
   <p>给中文网页里的词组加上浅色标记。</p>
-  <p><a href="https://github.com/Yueyue673/reading-cues/releases/latest">下载安装包</a> · <a href="#安装和更新">安装方法</a> · <a href="README.en.md">English</a></p>
+  <p><a href="https://github.com/Yueyue673/reading-cues/releases/latest">下载安装包</a> · <a href="#安装和更新">安装方法</a> · <a href="docs/POSTERS.md">项目海报</a> · <a href="README.en.md">English</a></p>
   <p><a href="https://github.com/Yueyue673/reading-cues/actions/workflows/check.yml"><img src="https://github.com/Yueyue673/reading-cues/actions/workflows/check.yml/badge.svg" alt="自动检查状态"></a> <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-315e4b?style=flat-square" alt="MIT 许可"></a></p>
 </div>
 
@@ -108,6 +108,14 @@ node scripts/capture-preview.mjs
 修改前请阅读[贡献说明](CONTRIBUTING.md)。程序检查通过、符合已有标注和阅读效果改善，需要分别验证。
 
 </details>
+
+## 分享轻读
+
+做了四张可以单独保存的海报，分别介绍词组标记、段落聚焦、个人词语和安装方法。使用实际截图，适合手机信息流。
+
+<a href="docs/POSTERS.md"><img src="docs/posters/01-phrase.png" width="360" alt="轻读项目海报：这几个字，一起读。实际展示同一段文字开启前后的差别"></a>
+
+[查看四张海报与独立原图](docs/POSTERS.md) · [打包下载 PNG](https://github.com/Yueyue673/reading-cues/releases/download/v0.6.1/reading-cues-posters-zh-CN.zip)
 
 ## 许可和致谢
 

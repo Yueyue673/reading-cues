@@ -71,6 +71,12 @@ To report a phrase error, share a short, non-private example, the actual marks a
 
 For local development and reproducible screenshots, see the [Chinese README](README.md).
 
+## Share Reading Cues
+
+Four separate Chinese-language posters show phrase marks, paragraph focus, personal terms and installation. Each uses verified product output and is available as a 2160 × 2700 PNG.
+
+[View the posters and individual images](docs/POSTERS.md) · [Download all four](https://github.com/Yueyue673/reading-cues/releases/download/v0.6.1/reading-cues-posters-zh-CN.zip)
+
 ## License and credits
 
 Project code and original content use [MIT](LICENSE). The bundled jieba dictionary retains its upstream [MIT license](licenses/jieba-MIT.txt) and [source record](docs/POS-SOURCE.md). Presentation was inspired by [Voyager](https://github.com/voyager-crew/voyager); Reading Cues has its own branding, interface and case images.
