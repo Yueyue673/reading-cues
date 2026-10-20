@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import '../src/core.js';
+import '../src/chunker.js';
+globalThis.ReadingCuesPOSData=readFileSync(new URL('../src/data/pos.tsv',import.meta.url),'utf8');
 const Core = globalThis.ReadingCues;
 const lexicon = JSON.parse(readFileSync(new URL('../src/lexicon.json', import.meta.url), 'utf8'));
 const matcher = Core.createMatcher(lexicon);
@@ -71,7 +73,7 @@ test('pause returns no matches',()=>assert.deepEqual(marks('不一定。',{enabl
 test('settings normalize untrusted storage and maintain independent defaults',()=>{
   assert.deepEqual(Core.normalizeSettings(null),Core.normalizeSettings());
   const data=Core.normalizeSettings({style:'script',maxGroups:999,categories:['condition','bad'],personal:['词语','词语'],ignored:['<script>']});
-  assert.equal(data.style,'background');assert.equal(data.maxGroups,0);assert.deepEqual(data.categories,['condition']);assert.deepEqual(data.personal,['词语']);assert.deepEqual(data.ignored,[]);
+  assert.equal(data.style,'underline');assert.equal(data.maxGroups,0);assert.deepEqual(data.categories,['condition']);assert.deepEqual(data.personal,['词语']);assert.deepEqual(data.ignored,[]);
 });
 test('import/export roundtrip only includes personal and ignored lists',()=>{
   const raw=Core.exportDictionary({personal:['工作记忆'],ignored:['然而'],sites:['https://private.example/*']});
@@ -87,8 +89,8 @@ test('site permission patterns are exact hosts with safe schemes',()=>{
 });
 
 test('default word boundaries cover ordinary topics without choosing semantic keywords',()=>{
-  assert.equal(Core.normalizeSettings().mode,'words');
-  const reader=Core.createReader(lexicon);
+  assert.equal(Core.normalizeSettings().mode,'chunks');
+  const reader=Core.createReader(lexicon,{mode:'words'});
   for(const text of ['公园里的树木沿着河岸生长，游客慢慢走过石桥。','厨房里放着新鲜蔬菜，奶奶准备晚饭。','火车驶入车站，旅客带着行李排队。','花園裡的蝴蝶停在花瓣上。']) {
     const units=[...new Intl.Segmenter('zh',{granularity:'word'}).segment(text)].filter(x=>x.isWordLike);
     const groups=reader.match(text);assert.ok(groups.length>=2);assert.ok(groups.every(g=>g.spans.every(s=>[...text.slice(s.start,s.end)].length>=2)));
@@ -103,10 +105,10 @@ test('known segmentation ambiguity can be corrected as a complete personal phras
 });
 test('word mode keeps compound corrections intact across emoji and respects ignored phrases',()=>{
   const text='🌿今天我们研究海洋生态系统，再观察海洋生态系统。';
-  const groups=Core.createReader(lexicon,{personal:['海洋生态系统']}).match(text);
+  const groups=Core.createReader(lexicon,{mode:'words',personal:['海洋生态系统']}).match(text);
   assert.equal(groups.filter(g=>g.category==='personal').length,2);
   assert.ok(groups.every(g=>g.spans.every(s=>s.start>=2)));
-  const ignored=Core.createReader(lexicon,{personal:['海洋生态系统'],ignored:['海洋生态系统']}).match(text);
+  const ignored=Core.createReader(lexicon,{mode:'words',personal:['海洋生态系统'],ignored:['海洋生态系统']}).match(text);
   assert.ok(ignored.every(g=>g.spans.every(s=>!text.slice(s.start,s.end).includes('海洋'))));
 });
 test('personal-only and optional logic modes remain distinct from word boundaries',()=>{
@@ -117,14 +119,14 @@ test('personal-only and optional logic modes remain distinct from word boundarie
 });
 test('color and segmentation preferences validate storage and cannot inject CSS',()=>{
   const settings=Core.normalizeSettings({lightColor:'red;display:none',darkColor:'#ABCDEF',intensity:999,wordStep:1,mode:'unknown'});
-  assert.equal(settings.lightColor,'#ffc940');assert.equal(settings.darkColor,'#abcdef');assert.equal(settings.intensity,50);assert.equal(settings.wordStep,2);assert.equal(settings.mode,'words');
+  assert.equal(settings.lightColor,'#ffc940');assert.equal(settings.darkColor,'#abcdef');assert.equal(settings.intensity,50);assert.equal(settings.wordStep,2);assert.equal(settings.mode,'chunks');
   assert.deepEqual(Core.colorVariables({lightColor:'#102030',intensity:85}),{'--reading-cues-light-rgb':'16 32 48','--reading-cues-dark-rgb':'102 217 196','--reading-cues-opacity':'0.85'});
 });
 test('missing local segmenter falls back only to explicit personal words',()=>{
   const original=Intl.Segmenter;
   try {
     Intl.Segmenter=undefined;
-    const reader=Core.createReader(lexicon,{personal:['完整词语']});
+    const reader=Core.createReader(lexicon,{mode:'words',personal:['完整词语']});
     assert.equal(reader.segmentationSupported,false);
     const text='只有完整词语才有提示。';
     assert.deepEqual(reader.match(text).flatMap(g=>g.spans.map(s=>text.slice(s.start,s.end))),['完整词语']);

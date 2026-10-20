@@ -11,7 +11,7 @@
   // Exposed on this local demo only, for reproducible renderer testing.
   globalThis.readingCuesDemo = renderer;
   for (const input of document.querySelectorAll('[name=demo-style]')) input.addEventListener('change', () => {
-    settings = {...settings, enabled: input.value !== 'original', style: input.value === 'underline' ? 'underline' : 'background'};
+    settings = {...settings, enabled: input.value !== 'original', style: input.value === 'original' ? settings.style : input.value};
     ReadingCuesUI.showPreferences(settings);
     void renderer.setSettings(settings);
   });

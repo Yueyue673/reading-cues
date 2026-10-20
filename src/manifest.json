@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "轻读 · Reading Cues",
-  "version": "0.3.0",
-  "description": "自动为中文网页提供本地词组分界，支持自选底色与强度、个人词组和可选逻辑提示。",
+  "version": "0.4.0",
+  "description": "本地中文意义块候选与阅读提示，默认下划线，支持开放评论组件、个人词组和稳定可选多色。",
   "minimum_chrome_version": "105",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "content_scripts": [{
     "matches": ["http://*/*", "https://*/*"],
-    "js": ["core.js", "lexicon.js", "renderer.js", "content.js"],
+    "js": ["core.js", "pos-data.js", "chunker.js", "lexicon.js", "renderer.js", "content.js"],
     "css": ["highlights.css"],
     "run_at": "document_idle",
     "all_frames": true

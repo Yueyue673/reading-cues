@@ -6,8 +6,9 @@
     explanation:'解释、举例与归纳', quantity:'数值、日期与时长', concept:'完整概念'});
   const CATEGORIES = Object.keys(CATEGORY_LABELS);
   const DEFAULTS = Object.freeze({
-    enabled: true, mode: 'words', style: 'background', maxGroups: 0, wordStep: 2,
+    enabled: true, mode: 'chunks', chunkDensity: 'balanced', style: 'underline', maxGroups: 0, wordStep: 2,
     lightColor: '#ffc940', darkColor: '#66d9c4', intensity: 50,
+    colorMode: 'single', colorSeed: 1,
     categories: Object.freeze([...CATEGORIES]), personal: Object.freeze([]), ignored: Object.freeze([])
   });
   const LIMITS = Object.freeze({ terms: 300, termLength: 40, importBytes: 100000, paragraph: 8000 });
@@ -28,12 +29,15 @@
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
     return {
       enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
-      mode: ['words', 'cues', 'personal'].includes(raw.mode) ? raw.mode : DEFAULTS.mode,
-      style: ['background', 'underline'].includes(raw.style) ? raw.style : DEFAULTS.style,
+      mode: ['chunks', 'words', 'cues', 'personal'].includes(raw.mode) ? raw.mode : DEFAULTS.mode,
+      chunkDensity: ['light','balanced','more'].includes(raw.chunkDensity) ? raw.chunkDensity : DEFAULTS.chunkDensity,
+      style: ['background', 'underline', 'bold', 'bold-underline'].includes(raw.style) ? raw.style : DEFAULTS.style,
       wordStep: [2,3,4].includes(raw.wordStep) ? raw.wordStep : DEFAULTS.wordStep,
       lightColor: /^#[0-9a-f]{6}$/i.test(raw.lightColor) ? raw.lightColor.toLowerCase() : DEFAULTS.lightColor,
       darkColor: /^#[0-9a-f]{6}$/i.test(raw.darkColor) ? raw.darkColor.toLowerCase() : DEFAULTS.darkColor,
       intensity: Number.isInteger(raw.intensity) && raw.intensity >= 20 && raw.intensity <= 85 ? raw.intensity : DEFAULTS.intensity,
+      colorMode: ['single','multi'].includes(raw.colorMode) ? raw.colorMode : DEFAULTS.colorMode,
+      colorSeed: Number.isInteger(raw.colorSeed) && raw.colorSeed >= 0 && raw.colorSeed <= 0xffffffff ? raw.colorSeed : DEFAULTS.colorSeed,
       maxGroups: [0, 1, 2, 3, 5, 8].includes(raw.maxGroups) ? raw.maxGroups : DEFAULTS.maxGroups,
       categories: Array.isArray(raw.categories) ? CATEGORIES.filter(x => raw.categories.includes(x)) : [...CATEGORIES],
       personal: terms(raw.personal), ignored: terms(raw.ignored)
@@ -221,12 +225,14 @@
     const phraseMatcher = createMatcher({...lexicon, entries:lexicon.entries.filter(e => e.kind === 'literal')},
       {...settings, categories:[...CATEGORIES]});
     const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter('zh', {granularity:'word'}) : null;
+    const chunker = globalThis.ReadingCuesChunks?.create(settings);
     function match(text) {
       if (typeof text !== 'string' || !settings.enabled) return [];
       if (settings.mode === 'cues') return cueMatcher.match(text);
+      if (settings.mode === 'chunks' && chunker) return chunker.match(text);
       text = text.slice(0,LIMITS.paragraph);
       const phrases = phraseMatcher.match(text,{budget:false}).filter(g => settings.mode !== 'personal' || g.category === 'personal');
-      if (settings.mode === 'personal' || !segmenter) return phrases.filter(g => g.category === 'personal');
+      if (settings.mode === 'personal' || !segmenter || settings.mode === 'chunks') return phrases.filter(g => g.category === 'personal');
       const words = [...segmenter.segment(text)].filter(s => s.isWordLike).map(s => ({start:s.index,end:s.index+s.segment.length}));
       const starts = new Set(words.map(s=>s.start)), ends = new Set(words.map(s=>s.end));
       // Never merge through the middle of a dictionary word. Personal phrases are
@@ -241,7 +247,7 @@
       return selected.filter(g=>g.category==='personal'||!selected.some(p=>p.category==='personal'&&
         (p.spans[0].end===g.spans[0].start||g.spans[0].end===p.spans[0].start)));
     }
-    return {match,settings,segmentationSupported:!!segmenter};
+    return {match,settings,prepare:settings.mode==='chunks'?chunker?.prepare:undefined,segmentationSupported:!!segmenter,chunkingSupported:!!chunker};
   }
 
   function colorVariables(settings) {
@@ -251,6 +257,16 @@
       '--reading-cues-opacity':String(s.intensity/100)};
   }
 
+  const PALETTE = Object.freeze(['#ffc940','#64d9b0','#77baff','#bda0ff','#ff9fbb','#ffa35c']);
+  const LINE_PALETTE = Object.freeze(['#8a5900','#167054','#2365a6','#6a42ab','#a53e67','#a54c12']);
+  function colorIndex(text, seed = DEFAULTS.colorSeed) {
+    // Stable across scans, navigation and identical words. Randomness enters
+    // only through the explicitly saved seed, never during painting.
+    let hash=(2166136261^(seed>>>0))>>>0;
+    for(let i=0;i<text.length;i++)hash=Math.imul(hash^text.charCodeAt(i),16777619)>>>0;
+    return hash%PALETTE.length;
+  }
+
   globalThis.ReadingCues = Object.freeze({DEFAULTS, LIMITS, CATEGORIES, CATEGORY_LABELS, safeTerm, normalizeSettings,
-    parseImport, exportDictionary, sitePattern, isSiteEnabled, paragraphBudget, validateLexicon, createMatcher, createReader, colorVariables});
+    parseImport, exportDictionary, sitePattern, isSiteEnabled, paragraphBudget, validateLexicon, createMatcher, createReader, colorVariables, PALETTE, LINE_PALETTE, colorIndex});
 })();

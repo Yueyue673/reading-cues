@@ -39,8 +39,8 @@ const results=[]; let browser, extension, browserVersion;
 async function check(name,fn){const start=Date.now();await fn();results.push({name,passed:true,milliseconds:Date.now()-start});console.log('PASS '+name);}
 const launchOptions = {headless:true,...(process.env.READING_CUES_BROWSER_EXECUTABLE?{executablePath:process.env.READING_CUES_BROWSER_EXECUTABLE}:{})};
 const highlighted = page => page.evaluate(()=>[...CSS.highlights].flatMap(([name,h])=>[...h].map(r=>({name,text:r.toString(),id:r.startContainer.parentElement.closest('[id]')?.id}))));
-async function installRenderer(page,settings={mode:'cues'}){
-  for(const name of ['core.js','lexicon.js','renderer.js'])await page.addScriptTag({path:path.join(dist,name)});
+async function installRenderer(page,settings={mode:'cues',style:'background'}){
+  for(const name of ['core.js','pos-data.js','chunker.js','lexicon.js','renderer.js'])await page.addScriptTag({path:path.join(dist,name)});
   await page.evaluate(async config=>{globalThis.renderer=ReadingCuesRenderer.create({settings:config});await renderer.scan();},settings);
 }
 const steady=page=>page.waitForFunction(()=>globalThis.renderer&&!renderer.getSnapshot().busy);
@@ -161,8 +161,59 @@ try{
     await page.goto(base+'/fixture');await page.evaluate(()=>Object.defineProperty(globalThis,'Highlight',{value:undefined,configurable:true}));await installRenderer(page);assert.equal(await page.evaluate(()=>renderer.getSnapshot().supported),false);
     assert.equal(await page.locator('article').textContent(),original.text);
   });
+  await check('nested open comment trees render, observe replies, exclude editors and clean up without changing comment HTML',async()=>{
+    await page.goto(base+'/fixture');
+    const originalComment=await page.evaluate(()=>{
+      const host=document.createElement('bili-comments');host.id='comments';document.querySelector('article').append(host);
+      const outer=host.attachShadow({mode:'open'});outer.innerHTML='<bili-comment-thread-renderer></bili-comment-thread-renderer><bili-comment-box></bili-comment-box>';
+      const thread=outer.querySelector('bili-comment-thread-renderer').attachShadow({mode:'open'});thread.innerHTML='<bili-comment-renderer></bili-comment-renderer>';
+      const comment=thread.querySelector('bili-comment-renderer').attachShadow({mode:'open'});comment.innerHTML='<bili-rich-text></bili-rich-text>';
+      const rich=comment.querySelector('bili-rich-text').attachShadow({mode:'open'});rich.innerHTML='<p id="shadow-main">预约成功后，请在明天上午九点前取书，不需要重新提交申请。</p>';
+      const editor=outer.querySelector('bili-comment-box').attachShadow({mode:'open'});editor.innerHTML='<div contenteditable="true">这是评论输入框，不需要重新提交申请。</div>';
+      globalThis.commentThread=thread;globalThis.commentRich=rich;globalThis.editorRoot=editor;
+      return rich.innerHTML;
+    });
+    const beforeImage=createHash('sha256').update(await page.locator('bili-comments').screenshot()).digest('hex');
+    await installRenderer(page,{});
+    const marks=await highlighted(page);assert.ok(marks.some(x=>x.id==='shadow-main'));
+    assert.equal(await page.locator('#shadow-main').evaluate(el=>getComputedStyle(el,'::highlight(reading-cues-line)').textDecorationLine),'underline');
+    assert.equal(await page.evaluate(()=>commentRich.innerHTML),originalComment);
+    assert.equal(await page.evaluate(()=>[...CSS.highlights.values()].flatMap(h=>[...h]).some(r=>r.startContainer.getRootNode()===editorRoot)),false);
+    assert.notEqual(createHash('sha256').update(await page.locator('bili-comments').screenshot()).digest('hex'),beforeImage,'shadow highlights must change actual pixels');
+    await page.evaluate(()=>{const reply=document.createElement('bili-comment-reply-renderer');commentThread.append(reply);const root=reply.attachShadow({mode:'open'});root.innerHTML='<p id="shadow-reply">连续降雨时，空气会逐渐减少。</p>';globalThis.replyHost=reply;});
+    await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>[...h].some(r=>r.startContainer.parentElement.id==='shadow-reply')));
+    await page.evaluate(()=>document.getElementById('comments').hidden=true);await page.waitForTimeout(300);await steady(page);
+    assert.equal((await highlighted(page)).some(x=>['shadow-main','shadow-reply'].includes(x.id)),false);
+    await page.evaluate(()=>document.getElementById('comments').hidden=false);await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>[...h].some(r=>r.startContainer.parentElement.id==='shadow-main')));
+    await page.evaluate(()=>{document.getElementById('comments').contentEditable='true';});await page.waitForTimeout(300);await steady(page);
+    assert.equal((await highlighted(page)).some(x=>x.id==='shadow-main'),false);
+    await page.evaluate(()=>{document.getElementById('comments').contentEditable='false';});await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>[...h].some(r=>r.startContainer.parentElement.id==='shadow-main')));
+    await page.evaluate(()=>renderer.destroy());assert.equal(await page.evaluate(()=>commentRich.adoptedStyleSheets.length),0);
+  });
+  await check('late attachShadow is discovered without rescanning the page and closed trees remain untouched',async()=>{
+    await page.goto(base+'/fixture');await page.evaluate(()=>{const host=document.createElement('x-late-comment');host.id='late-host';document.querySelector('article').append(host);const closed=document.createElement('x-private-comment');document.querySelector('article').append(closed);globalThis.closedRoot=closed.attachShadow({mode:'closed'});closedRoot.innerHTML='<p id="closed-content">这段封闭内容保持原样。</p>';});await installRenderer(page,{});
+    await page.evaluate(()=>{document.getElementById('late-host').attachShadow({mode:'open'}).innerHTML='<p id="late-comment">提前一天申请，不收取费用。</p>';});
+    await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>[...h].some(r=>r.startContainer.parentElement.id==='late-comment')));
+    assert.equal(await page.evaluate(()=>closedRoot.adoptedStyleSheets.length),0);
+    assert.ok(await page.evaluate(()=>renderer.getSnapshot().scannedCharacters)<100);
+    await page.evaluate(()=>document.getElementById('late-host').remove());await page.waitForTimeout(300);await steady(page);assert.equal((await highlighted(page)).some(x=>x.id==='late-comment'),false);
+    await page.evaluate(()=>renderer.destroy());
+  });
+  await check('stable multicolor and visual weight preserve layout, ranges and unchanged word colors',async()=>{
+    await page.goto(base+'/fixture');await installRenderer(page,{colorMode:'multi'});
+    const before=await highlighted(page);assert.ok(new Set(before.map(x=>x.name)).size>1);
+    await page.evaluate(()=>renderer.scan());assert.deepEqual(await highlighted(page),before);
+    const box=await page.locator('article').evaluate(el=>({html:el.innerHTML,height:el.offsetHeight}));
+    await page.evaluate(()=>renderer.setSettings({style:'bold-underline',colorMode:'multi'}));
+    assert.ok((await highlighted(page)).every(x=>x.name.startsWith('reading-cues-bold-line')));
+    assert.equal(await page.locator('article').evaluate(el=>({html:el.innerHTML,height:el.offsetHeight})).then(x=>JSON.stringify(x)),JSON.stringify(box));
+    const style=await page.locator('#cross').evaluate(el=>{const [name]=[...CSS.highlights].find(([,h])=>[...h].some(r=>r.startContainer.parentElement.closest('#cross')));return getComputedStyle(el,'::highlight('+name+')').textShadow;});
+    assert.notEqual(style,'none');
+    await page.evaluate(()=>renderer.setSettings({style:'bold'}));const weighted=createHash('sha256').update(await page.locator('article').screenshot()).digest('hex');
+    await page.evaluate(()=>renderer.setSettings({enabled:false}));assert.notEqual(createHash('sha256').update(await page.locator('article').screenshot()).digest('hex'),weighted,'weight must change actual pixels, not only computed CSS');await page.evaluate(()=>renderer.destroy());
+  });
   await check('custom strong colors preserve text contrast in light and dark paragraphs',async()=>{
-    await page.goto(base+'/fixture');await installRenderer(page,{lightColor:'#111111',darkColor:'#ffcc00',intensity:85});
+    await page.goto(base+'/fixture');await installRenderer(page,{style:'background',lightColor:'#111111',darkColor:'#ffcc00',intensity:85});
     const data=await page.evaluate(()=>{
       const lum=rgb=>rgb.map(n=>n/255).map(n=>n<=.04045?n/12.92:((n+.055)/1.055)**2.4).reduce((s,n,i)=>s+n*[.2126,.7152,.0722][i],0);
       return [...CSS.highlights].flatMap(([name,h])=>[...h].filter(r=>['cross','dark'].includes(r.startContainer.parentElement.closest('[id]')?.id)).map(r=>{
@@ -192,6 +243,16 @@ try{
     await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(artifacts,'demo-mobile.png'),fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     assert.deepEqual(errors,[]);
   });
+  await check('comparison page switches between literal user annotations and algorithms without rewriting text',async()=>{
+    await page.goto(base+'/compare.html');await page.waitForFunction(()=>globalThis.readingCuesComparison&&!readingCuesComparison.getSnapshot().busy);
+    const text=await page.locator('#compare-article').textContent();
+    await page.locator('[data-plan=personal]').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.includes('10 组'));
+    assert.equal((await page.locator('#chosen-pieces').textContent()).includes('介绍城市建筑的画册'),true);
+    await page.locator('[data-plan=original]').click();await page.waitForFunction(()=>![...CSS.highlights.values()].some(h=>h.size));assert.equal(await page.locator('#compare-article').textContent(),text);
+    await page.locator('#compare-sample').selectOption('3');assert.equal(await page.locator('#manual-plan').isDisabled(),true);
+    await page.locator('[data-plan=chunks]').click();await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>h.size));
+    await page.screenshot({path:path.join(artifacts,'comparison.png'),fullPage:true});
+  });
   await browser.close();browser=null;
 
   // Load the distributed manifest with its actual global static content scripts.
@@ -212,7 +273,7 @@ try{
   await check('fresh installation automatically marks two new origins without opening any extension UI',async()=>{
     await waitStatus(s=>s.groups>0&&!s.busy);await waitStatus(s=>s.groups>0&&!s.busy,otherTabId);
     const data=await worker.evaluate(()=>chrome.storage.local.get(['settings','excludedSites']));
-    assert.equal(data.settings.enabled,true);assert.equal(data.settings.mode,'words');assert.equal(data.settings.maxGroups,0);assert.deepEqual(data.excludedSites,[]);
+    assert.equal(data.settings.enabled,true);assert.equal(data.settings.mode,'chunks');assert.equal(data.settings.style,'underline');assert.equal(data.settings.maxGroups,0);assert.deepEqual(data.excludedSites,[]);
     assert.deepEqual((await worker.evaluate(()=>chrome.permissions.getAll())).origins.sort(),['http://*/*','https://*/*']);
     assert.equal(await site.locator('article').innerHTML(),original.html);
     await site.screenshot({path:path.join(artifacts,'extension-fixture.png'),fullPage:true,caret:'initial'});
@@ -236,7 +297,8 @@ try{
     await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
   });
   await check('mode, custom colors and intensity persist and apply under strict CSP',async()=>{
-    assert.equal(await options.locator('#reading-mode').inputValue(),'words');
+    assert.equal(await options.locator('#reading-mode').inputValue(),'chunks');
+    await options.locator('[name=style][value=background]').check();
     assert.equal(await options.locator('.palette button').count(),6);
     await options.locator('#light-color').fill('#ff66cc');await options.locator('#light-color').dispatchEvent('change');
     await options.locator('#dark-color').fill('#aa77ff');await options.locator('#dark-color').dispatchEvent('change');
@@ -255,6 +317,18 @@ try{
     await site.reload();await waitStatus(s=>s.groups===0&&!s.busy);
     await send({type:'site',url:base+'/fixture',enabled:true});await waitStatus(s=>s.groups>0&&!s.busy);
     assert.equal((await worker.evaluate(()=>chrome.scripting.getRegisteredContentScripts())).length,0);
+  });
+  await check('actual extension styles nested comments even under strict page CSP',async()=>{
+    await site.goto(base+'/fixture-csp');await waitStatus(s=>s.groups>0&&!s.busy);
+    await site.evaluate(()=>{const host=document.createElement('x-csp-comments');host.id='csp-host';document.body.append(host);host.attachShadow({mode:'open'}).innerHTML='<p id="csp-comment">预约成功后，提前一天申请，不收取费用。</p><div contenteditable="true">编辑文字不收取费用。</div>';});
+    await waitStatus(s=>s.shadowRoots>0&&!s.busy);
+    const result=await worker.evaluate(async tabId=>(await chrome.scripting.executeScript({target:{tabId},func:()=>{
+      const root=document.getElementById('csp-host').shadowRoot,p=root.getElementById('csp-comment');let count=0;
+      for(const [,h]of CSS.highlights)for(const r of h)if(r.startContainer.parentElement===p)count++;
+      return {count,sheets:root.adoptedStyleSheets.length,background:getComputedStyle(p,'::highlight(reading-cues-light)').backgroundColor,wrappers:root.querySelectorAll('mark,[data-reading-cues-control]').length};
+    }}))[0].result,siteTabId);
+    assert.ok(result.count>0);assert.equal(result.sheets,1);assert.equal(result.background,'rgba(255, 102, 204, 0.75)');assert.equal(result.wrappers,0);
+    await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
   });
   await check('global pause clears every open page and resume restores automatically',async()=>{
     await send({type:'settings',patch:{enabled:false}});await waitStatus(s=>s.groups===0&&!s.busy);await waitStatus(s=>s.groups===0&&!s.busy,otherTabId);

@@ -6,13 +6,20 @@ import '../src/core.js';
 import '../src/renderer.js';
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dest = path.join(root, 'dist', 'extension');
-const files = ['core.js','renderer.js','content.js','background.js','manifest.json','ui.css','ui-common.js',
-  'popup.html','popup.js','options.html','options.js','demo.html','demo.js'];
+const files = ['core.js','chunker.js','renderer.js','content.js','background.js','manifest.json','ui.css','ui-common.js',
+  'popup.html','popup.js','options.html','options.js','demo.html','demo.js','compare.html','compare.js'];
 await mkdir(path.join(dest, 'icons'), {recursive: true});
 const lexicon = JSON.parse(await readFile(path.join(root, 'src', 'lexicon.json'), 'utf8'));
 ReadingCues.validateLexicon(lexicon);
 for (const file of files) await copyFile(path.join(root, 'src', file), path.join(dest, file));
 await writeFile(path.join(dest, 'lexicon.js'), `/* Original local lexicon. Generated from src/lexicon.json. */\nglobalThis.ReadingCuesLexicon = ${JSON.stringify(lexicon)};\n`);
+const pos=await readFile(path.join(root,'src','data','pos.tsv'),'utf8');
+await writeFile(path.join(dest,'pos-data.js'),`/* Local POS hints, derived from jieba (MIT). See licenses/jieba-MIT.txt. */\nglobalThis.ReadingCuesPOSData=${JSON.stringify(pos)};\n`);
+await mkdir(path.join(dest,'licenses'),{recursive:true});
+await copyFile(path.join(root,'licenses','jieba-MIT.txt'),path.join(dest,'licenses','jieba-MIT.txt'));
+const calibration=JSON.parse(await readFile(path.join(root,'tests','fixtures','user-annotations.json'),'utf8')).samples;
+const challenges=JSON.parse(await readFile(path.join(root,'src','data','challenge-passages.json'),'utf8'));
+await writeFile(path.join(dest,'comparison-data.js'),`/* Original examples; the first three are calibration, not held-out evaluation. */\nglobalThis.ReadingCuesComparisonData=${JSON.stringify([...calibration,...challenges])};\n`);
 await writeFile(path.join(dest, 'highlights.css'), ReadingCuesRenderer.cssText);
 function crc32(data) {
   let crc = 0xffffffff;

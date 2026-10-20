@@ -1,0 +1,9 @@
+{
+  "kind":"calibration-not-heldout",
+  "description":"Original assistant-authored text annotated by the project user. These are reading preferences, not a clinical or linguistic gold standard. The final phrase in sample 2 may be an intentionally partial span; preserve it literally.",
+  "samples":[
+    {"id":"narrative","text":"周末早上，我坐公交车去城南的旧书店。店主正在整理刚收到的书，窗边放着几盆植物。我原本只想随便看看，后来却被一本介绍城市建筑的画册吸引，最后在店里待了一个多小时。","marks":["周末早上","公交车","城南","旧书店","整理","几盆植物","介绍城市建筑的画册","吸引","最后","待了一个多小时"]},
+    {"id":"instructions","text":"预约成功后，请在当天上午十点前到服务台领取材料。修改预约时间需要提前一天申请，取消预约则不收取费用。如果只是更换联系人，可以直接在原订单中修改，不需要重新提交申请。","marks":["预约成功","当天上午十点前","服务台","材料","提前一天申请","取消","不收取费用","只是更换联系人","原订单中修改","不需要重新"]},
+    {"id":"science","text":"树木的根系除了吸收水分，还能帮助土壤保持稳定。连续降雨时，土壤中的空气会逐渐减少，部分植物因此难以正常生长。不同植物对潮湿环境的适应能力不同，不能只根据叶片是否发黄来判断缺水。","marks":["根系","吸收水分","保持稳定","连续降雨","空气会逐渐减少","因此难以正常生长","潮湿环境","适应能力不同","叶片","发黄","缺水"]}
+  ]
+}

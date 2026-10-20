@@ -1,7 +1,7 @@
 /* Global-by-default MV3 worker. Settings writes are serialized. */
 importScripts('core.js');
 const Core = globalThis.ReadingCues;
-const FILES = ['core.js', 'lexicon.js', 'renderer.js', 'content.js'];
+const FILES = ['core.js', 'pos-data.js', 'chunker.js', 'lexicon.js', 'renderer.js', 'content.js'];
 let queue = Promise.resolve();
 function serialized(task) {
   const result = queue.then(task, task);
@@ -11,14 +11,15 @@ function serialized(task) {
 
 async function migrateStorage() {
   const data = await chrome.storage.local.get(['settings', 'excludedSites', 'storageVersion']);
-  if (data.storageVersion === 3) return;
+  if (data.storageVersion === 4) return;
   const settings = Core.normalizeSettings(data.settings);
-  if (data.storageVersion !== 2 && data.settings?.categories) {
+  if (!data.storageVersion && data.settings?.categories) {
     const old = ['restriction', 'condition', 'contrast'];
     settings.categories = [...new Set([...settings.categories, ...Core.CATEGORIES.filter(x => !old.includes(x))])];
   }
-  if (!data.settings || (data.storageVersion !== 2 && data.settings.maxGroups === 2)) settings.maxGroups = 0;
-  await chrome.storage.local.set({settings, excludedSites:data.excludedSites || [], storageVersion:3});
+  if (!data.settings || (!data.storageVersion && data.settings.maxGroups === 2)) settings.maxGroups = 0;
+  if(data.settings?.mode === 'words') settings.mode='chunks';
+  await chrome.storage.local.set({settings, excludedSites:data.excludedSites || [], storageVersion:4});
   await chrome.storage.local.remove('sites');
 }
 
@@ -44,7 +45,7 @@ async function mutate(message) {
   const settings = Core.normalizeSettings(data.settings);
   switch (message.type) {
     case 'settings': {
-      const allowed = ['enabled', 'mode', 'style', 'maxGroups', 'categories', 'wordStep', 'lightColor', 'darkColor', 'intensity'];
+      const allowed = ['enabled', 'mode', 'chunkDensity', 'style', 'maxGroups', 'categories', 'wordStep', 'lightColor', 'darkColor', 'intensity', 'colorMode', 'colorSeed'];
       const patch = Object.fromEntries(allowed.filter(k => Object.hasOwn(message.patch || {}, k)).map(k => [k, message.patch[k]]));
       await chrome.storage.local.set({settings:Core.normalizeSettings({...settings, ...patch})});
       break;

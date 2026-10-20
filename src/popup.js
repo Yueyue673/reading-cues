@@ -9,7 +9,7 @@
   async function refresh() {
     const data = await UI.load();
     UI.showPreferences(data.settings);
-    document.getElementById('sample-cue').className = data.settings.style === 'background' ? 'preview-mark' : 'preview-line';
+    document.getElementById('sample-cue').className = UI.styleClass(data.settings.style);
     active = !data.excludedSites.includes(pattern);
     button.textContent = !pattern ? '这个页面由浏览器保护' : active ? '仅暂停这个网站' : '恢复这个网站的自动提示';
     button.disabled = !pattern;
