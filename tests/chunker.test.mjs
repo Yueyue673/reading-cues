@@ -48,3 +48,38 @@ test('calibration annotations stay separate from general regression examples',()
   assert.equal(data.samples.reduce((n,s)=>n+s.marks.length,0),31);
   assert.ok(data.samples.every(s=>s.marks.every(w=>s.text.includes(w))));
 });
+
+test('negative adjective predicates and modal actions keep their attached negation at every density',()=>{
+  for(const [text,wanted,forbidden]of [
+    ['这个结果并不稳定。','并不稳定','稳定'],
+    ['申请不能自动通过。','不能自动通过','自动通过'],
+    ['没有完成审核。','没有完成审核','完成审核'],
+    ['项目并不意味着完全失败。','并不意味着完全失败','失败']
+  ]){
+    assert.ok(constructions(text).includes(wanted),JSON.stringify({text,actual:constructions(text)}));
+    for(const chunkDensity of ['light','balanced','more'])assert.ok(!pieces(text,{chunkDensity}).includes(forbidden));
+  }
+});
+test('selected amounts retain units and distinguish a change from its result',()=>{
+  const text='价格降低了20元，另一个套餐降低到20元。';const actual=constructions(text);
+  assert.ok(actual.includes('降低了20元'));assert.ok(actual.includes('降低到20元'));
+  for(const bad of ['降低','20','元'])assert.ok(!actual.includes(bad));
+  for(const [text,wanted]of [['电量不足20%时请充电。','不足20%'],['温度不要超过37.5℃。','不要超过37.5℃']])assert.ok(constructions(text).includes(wanted));
+  for(const text of ['费用为10-20元。','比例约20%-30%。']){
+    const tokens=ReadingCuesChunks.tokenize(text);assert.ok(tokens.some(t=>['10-20元','20%-30%'].includes(t.word)));
+    assert.ok(!tokens.some(t=>/^-(?:20元|30%)$/u.test(t.word)));
+  }
+});
+test('date and clock syntax stays intact without crossing whitespace or sentence punctuation',()=>{
+  const text='🌿时间为2026年10月20日18:30，费用12.5元。';
+  const actual=constructions(text);assert.ok(actual.includes('2026年10月20日18:30'));assert.ok(actual.includes('12.5元'));
+  const spaced='2026年10月20日 18:30。明天再来';
+  assert.ok(constructions(spaced).every(t=>!/[\s。]/u.test(t)));
+  assert.ok(constructions('不要超过37.5℃，请关闭设备。').every(t=>!/[，。]/u.test(t)));
+});
+test('adverbial endings and bare modal helpers are not completed phrase candidates',()=>{
+  for(const text of ['项目并没有达到预定目标，也不意味着完全失败。','只有提交完整材料，申请才能进入审核。']){
+    const actual=constructions(text);
+    for(const bad of ['没有','不意味着完全','才能'])assert.ok(!actual.includes(bad),JSON.stringify({text,actual}));
+  }
+});

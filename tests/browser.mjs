@@ -253,6 +253,46 @@ try{
     await page.locator('[data-plan=chunks]').click();await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>h.size));
     await page.screenshot({path:path.join(artifacts,'comparison.png'),fullPage:true});
   });
+  await check('review editor keeps exact occurrences, undo and exported drafts without changing article HTML',async()=>{
+    await page.goto(base+'/compare.html');
+    const text='🌿完整词组，再次完整词组。<img src=x onerror=alert(1)>';
+    await page.locator('summary').filter({hasText:'也试试自己的文字'}).click();
+    await page.locator('#compare-custom').fill(text);await page.locator('#compare-use').click();
+    assert.equal(await page.locator('#compare-sample option:checked').textContent(),'我的文字');
+    await page.locator('[data-plan=annotate]').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.startsWith('自行标注'));
+    assert.equal((await highlighted(page)).length,0);assert.equal(await page.locator('#compare-article img').count(),0);
+    const start=text.lastIndexOf('完整词组');
+    await page.locator('#compare-article').evaluate((el,start)=>{const r=new Range();r.setStart(el.firstChild,start);r.setEnd(el.firstChild,start+4);getSelection().removeAllRanges();getSelection().addRange(r);},start);
+    await page.locator('#annotation-add').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('1 处'));
+    assert.deepEqual(await page.evaluate(()=>[...CSS.highlights.get('reading-cues-review')].map(r=>[r.startOffset,r.endOffset,r.toString()])),[[start,start+4,'完整词组']]);
+    await page.locator('#annotation-complete').click();assert.ok((await page.locator('#annotation-count').textContent()).includes('已确认完成'));
+    await page.locator('#chosen-pieces button').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('0 处'));
+    await page.locator('#annotation-undo').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('1 处'));
+    assert.ok((await page.locator('#annotation-count').textContent()).includes('已确认完成'));
+    await page.locator('#annotation-clear').click();await page.locator('#annotation-undo').click();
+    await page.locator('[data-plan=chunks]').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.startsWith('当前 '));
+    await page.locator('[data-plan=annotate]').click();await page.waitForFunction(()=>document.getElementById('annotation-count').textContent.includes('1 处'));
+    const downloadEvent=page.waitForEvent('download');await page.locator('#annotation-export').click();const download=await downloadEvent;
+    assert.equal(download.suggestedFilename(),'reading-cues-annotations.json');
+    const data=JSON.parse(await readFile(await download.path(),'utf8'));
+    assert.equal(data.kind,'reading-cues-annotations');assert.equal(data.samples[0].text,text);assert.equal(data.samples[0].reviewed,true);
+    assert.deepEqual(data.samples[0].spans,[{start,end:start+4,text:'完整词组'}]);
+    assert.equal(await page.locator('#compare-article').textContent(),text);assert.equal(await page.locator('#compare-article img').count(),0);
+    await page.screenshot({path:path.join(artifacts,'annotation-editor.png'),fullPage:true});
+    await page.reload();await page.locator('[data-plan=annotate]').click();await page.waitForFunction(()=>document.getElementById('compare-status').textContent.startsWith('自行标注'));
+    assert.equal((await highlighted(page)).length,0);assert.ok((await page.locator('#annotation-count').textContent()).includes('0 处'));
+  });
+  await check('comparison density changes candidates and editor fits a narrow screen',async()=>{
+    await page.goto(base+'/compare.html');await page.locator('#compare-sample').selectOption('1');
+    const count=async density=>{await page.locator('#compare-density').selectOption(density);await page.waitForFunction(()=>document.getElementById('compare-status').textContent.startsWith('当前 '));return await page.locator('#chosen-pieces span').count();};
+    const light=await count('light'),more=await count('more');assert.ok(more>light,JSON.stringify({light,more}));
+    await page.locator('[data-plan=annotate]').click();await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.locator('#compare-article').evaluate(el=>window.scrollTo(0,el.offsetTop+40));
+    const toolbar=await page.locator('#annotation-actions').boundingBox();assert.ok(toolbar.y>=0&&toolbar.y<20);
+    await page.screenshot({path:path.join(artifacts,'annotation-mobile.png'),fullPage:true});
+    await page.setViewportSize({width:1360,height:1000});assert.deepEqual(errors,[]);
+  });
   await browser.close();browser=null;
 
   // Load the distributed manifest with its actual global static content scripts.

@@ -4,14 +4,17 @@
 
 桌面 Chrome / Edge 的本地中文阅读辅助扩展。安装授权后，普通 HTTP / HTTPS 网页全局自动工作，不必逐站开启，没有网页浮窗、模型费用或阅读追踪。
 
-**[下载 v0.4.0](https://github.com/Yueyue673/reading-cues/releases/latest) · [标注与算法](docs/ANNOTATION-DESIGN.md) · [研究复核](docs/RESEARCH-REVIEW-0.3.md) · [验证记录](docs/VALIDATION.md)**
+**[下载 v0.5.0](https://github.com/Yueyue673/reading-cues/releases/latest) · [本轮修正](docs/ITERATION-0.5.md) · [标注与算法](docs/ANNOTATION-DESIGN.md) · [验证记录](docs/VALIDATION.md)**
 
 ![轻读试读](docs/preview.png)
 
 ## 这次改进
 
+- **先修改变意思的边界**：让“并不稳定”“不能自动通过”、金额、百分比、单位和常见日期时刻一起保留；区分“降低了20元”和“降低到20元”，减少悬空修饰成分。仍是有长度限制的浅层规则，不是完整语义解析。
+- **直接标注下一轮偏好**：在对照页点“我来标注”，拖选正文加入片段；支持移除、撤销、确认完成、复制与 JSON 导出。同一词的不同出现位置分别记录，草稿和确认状态区分。仅当前页暂存，刷新后清除；不会自动上传或学习。
+- **同时比较密度**：固定下划线，切换轻量 / 均衡 / 较多。窄屏滚动时标注操作条保持可见。另增否定、数值和日期边界检查材料。[问题、研究与边界](docs/ITERATION-0.5.md)
 - **从逐词交替改为结构候选**：根据使用者提供的 31 个标注，尝试保留完整时间、修饰语、动作与状态。界面明确标为“意义块（试验）”，有轻量 / 均衡 / 较多三档。它仍会选错，不代表已理解文章。
-- **同文对照**：包内 `compare.html` 可切换原文、旧分词、新候选和使用者原标注，还可试四段新题材文字或粘贴自己的文字。对照页不保存输入。
+- **同文对照**：包内 `compare.html` 可切换原文、旧分词、新候选和上一轮原标注，还可试新题材与边界检查文字，或粘贴自己的文字。上一轮参考不被新标注覆盖。
 - **默认下划线**：新增描边式加重、加重＋下划线；底色继续可用。加重通过绘制让字看起来更重，保留原有字号与换行，不等同于字体的 `font-weight`。
 - **可选稳定多色**：六种色彩，按词组稳定分配。相同词组同色，滚动和重扫不换色；主动“换一组”才重新分配。默认单色，颜色不表示重要程度，也不增加标记数量。
 - **开放评论组件**：支持嵌套开放 Shadow DOM、动态回复和延迟挂载。已用实际扩展检查一个 B 站公开视频页的评论与楼中楼；用户名、按钮、评论输入框等保持原样。
@@ -21,7 +24,7 @@
 
 ## 安装与更新
 
-1. 从 [Releases](https://github.com/Yueyue673/reading-cues/releases/latest) 下载 `reading-cues-0.4.0.zip`，完整解压到固定目录。
+1. 从 [Releases](https://github.com/Yueyue673/reading-cues/releases/latest) 下载 `reading-cues-0.5.0.zip`，完整解压到固定目录。
 2. Chrome 打开 `chrome://extensions`；Edge 打开 `edge://extensions`。
 3. 开启**开发者模式** → **加载已解压的扩展程序** → 选择含 `manifest.json` 的目录。
 4. 完成浏览器网站访问授权，打开普通网页即可自动工作；已有页面刷新一次。
@@ -86,7 +89,7 @@ tests/              语言反例、迁移、构式与浏览器回归
 
 ## English
 
-Reading Cues is a local Chinese reading-assistance experiment for desktop Chromium. Version 0.4 adds annotation-informed phrase candidates, an offline comparison page, default underlines, visual weight options, stable optional colors, and open-shadow comment support tested on one public Bilibili video. The phrase heuristic uses a compact MIT-licensed POS dictionary, not an LLM or a full parser. Calibration agreement is not held-out accuracy or reading effectiveness. No telemetry or runtime network requests.
+Reading Cues is a local Chinese reading-assistance experiment for desktop Chromium. Version 0.5 repairs attached negation and numeric boundaries and adds an offline annotation editor with exact offsets, undo, draft/review states and explicit JSON export. Default underlines, optional stable colors and open-shadow comments remain supported. The phrase heuristic uses a compact MIT-licensed POS dictionary, not an LLM or a full parser. Calibration agreement is not held-out accuracy or reading effectiveness. No telemetry or runtime network requests.
 
 ## 许可
 

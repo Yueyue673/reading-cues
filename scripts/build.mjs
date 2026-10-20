@@ -7,7 +7,7 @@ import '../src/renderer.js';
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dest = path.join(root, 'dist', 'extension');
 const files = ['core.js','chunker.js','renderer.js','content.js','background.js','manifest.json','ui.css','ui-common.js',
-  'popup.html','popup.js','options.html','options.js','demo.html','demo.js','compare.html','compare.js'];
+  'popup.html','popup.js','options.html','options.js','demo.html','demo.js','compare.html','compare.js','annotations.js'];
 await mkdir(path.join(dest, 'icons'), {recursive: true});
 const lexicon = JSON.parse(await readFile(path.join(root, 'src', 'lexicon.json'), 'utf8'));
 ReadingCues.validateLexicon(lexicon);

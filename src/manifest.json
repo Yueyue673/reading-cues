@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "轻读 · Reading Cues",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "本地中文意义块候选与阅读提示，默认下划线，支持开放评论组件、个人词组和稳定可选多色。",
   "minimum_chrome_version": "105",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
