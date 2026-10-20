@@ -85,3 +85,48 @@ test('site permission patterns are exact hosts with safe schemes',()=>{
   assert.equal(Core.sitePattern('http://sub.example.com/'),'http://sub.example.com/*');
   for(const s of ['chrome://extensions','file:///test','javascript:alert(1)','nonsense'])assert.equal(Core.sitePattern(s),null);
 });
+
+test('default word boundaries cover ordinary topics without choosing semantic keywords',()=>{
+  assert.equal(Core.normalizeSettings().mode,'words');
+  const reader=Core.createReader(lexicon);
+  for(const text of ['公园里的树木沿着河岸生长，游客慢慢走过石桥。','厨房里放着新鲜蔬菜，奶奶准备晚饭。','火车驶入车站，旅客带着行李排队。','花園裡的蝴蝶停在花瓣上。']) {
+    const units=[...new Intl.Segmenter('zh',{granularity:'word'}).segment(text)].filter(x=>x.isWordLike);
+    const groups=reader.match(text);assert.ok(groups.length>=2);assert.ok(groups.every(g=>g.spans.every(s=>[...text.slice(s.start,s.end)].length>=2)));
+    for(const g of groups)for(const s of g.spans)assert.ok(units.some(u=>u.index===s.start&&u.segment.length===s.end-s.start));
+  }
+});
+test('known segmentation ambiguity can be corrected as a complete personal phrase',()=>{
+  const text='我们走过南京市长江大桥，讨论认知负荷。';
+  const groups=Core.createReader(lexicon,{personal:['南京市长江大桥']}).match(text);
+  assert.ok(groups.some(g=>g.spans.some(s=>text.slice(s.start,s.end)==='南京市长江大桥')));
+  assert.ok(!groups.some(g=>g.spans.some(s=>['南京市','长江'].includes(text.slice(s.start,s.end)))));
+});
+test('word mode keeps compound corrections intact across emoji and respects ignored phrases',()=>{
+  const text='🌿今天我们研究海洋生态系统，再观察海洋生态系统。';
+  const groups=Core.createReader(lexicon,{personal:['海洋生态系统']}).match(text);
+  assert.equal(groups.filter(g=>g.category==='personal').length,2);
+  assert.ok(groups.every(g=>g.spans.every(s=>s.start>=2)));
+  const ignored=Core.createReader(lexicon,{personal:['海洋生态系统'],ignored:['海洋生态系统']}).match(text);
+  assert.ok(ignored.every(g=>g.spans.every(s=>!text.slice(s.start,s.end).includes('海洋'))));
+});
+test('personal-only and optional logic modes remain distinct from word boundaries',()=>{
+  const text='只有先看完整文章，才可以理解认知负荷。';
+  const personal=Core.createReader(lexicon,{mode:'personal',personal:['完整文章']}).match(text);
+  assert.deepEqual(personal.map(g=>g.spans.map(s=>text.slice(s.start,s.end))),[['完整文章']]);
+  assert.deepEqual(Core.createReader(lexicon,{mode:'cues'}).match(text),Core.createMatcher(lexicon).match(text));
+});
+test('color and segmentation preferences validate storage and cannot inject CSS',()=>{
+  const settings=Core.normalizeSettings({lightColor:'red;display:none',darkColor:'#ABCDEF',intensity:999,wordStep:1,mode:'unknown'});
+  assert.equal(settings.lightColor,'#ffc940');assert.equal(settings.darkColor,'#abcdef');assert.equal(settings.intensity,50);assert.equal(settings.wordStep,2);assert.equal(settings.mode,'words');
+  assert.deepEqual(Core.colorVariables({lightColor:'#102030',intensity:85}),{'--reading-cues-light-rgb':'16 32 48','--reading-cues-dark-rgb':'102 217 196','--reading-cues-opacity':'0.85'});
+});
+test('missing local segmenter falls back only to explicit personal words',()=>{
+  const original=Intl.Segmenter;
+  try {
+    Intl.Segmenter=undefined;
+    const reader=Core.createReader(lexicon,{personal:['完整词语']});
+    assert.equal(reader.segmentationSupported,false);
+    const text='只有完整词语才有提示。';
+    assert.deepEqual(reader.match(text).flatMap(g=>g.spans.map(s=>text.slice(s.start,s.end))),['完整词语']);
+  } finally {Intl.Segmenter=original;}
+});

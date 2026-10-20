@@ -11,14 +11,14 @@ function serialized(task) {
 
 async function migrateStorage() {
   const data = await chrome.storage.local.get(['settings', 'excludedSites', 'storageVersion']);
-  if (data.storageVersion === 2) return;
+  if (data.storageVersion === 3) return;
   const settings = Core.normalizeSettings(data.settings);
-  if (data.settings?.categories) {
+  if (data.storageVersion !== 2 && data.settings?.categories) {
     const old = ['restriction', 'condition', 'contrast'];
     settings.categories = [...new Set([...settings.categories, ...Core.CATEGORIES.filter(x => !old.includes(x))])];
   }
-  if (!data.settings || data.settings.maxGroups === 2) settings.maxGroups = 0;
-  await chrome.storage.local.set({settings, excludedSites:data.excludedSites || [], storageVersion:2});
+  if (!data.settings || (data.storageVersion !== 2 && data.settings.maxGroups === 2)) settings.maxGroups = 0;
+  await chrome.storage.local.set({settings, excludedSites:data.excludedSites || [], storageVersion:3});
   await chrome.storage.local.remove('sites');
 }
 
@@ -44,7 +44,7 @@ async function mutate(message) {
   const settings = Core.normalizeSettings(data.settings);
   switch (message.type) {
     case 'settings': {
-      const allowed = ['enabled', 'style', 'maxGroups', 'categories'];
+      const allowed = ['enabled', 'mode', 'style', 'maxGroups', 'categories', 'wordStep', 'lightColor', 'darkColor', 'intensity'];
       const patch = Object.fromEntries(allowed.filter(k => Object.hasOwn(message.patch || {}, k)).map(k => [k, message.patch[k]]));
       await chrome.storage.local.set({settings:Core.normalizeSettings({...settings, ...patch})});
       break;

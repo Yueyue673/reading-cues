@@ -3,6 +3,7 @@
   const article = document.getElementById('reading-article');
   const original = [...article.childNodes].map(n => n.cloneNode(true));
   let settings = ReadingCues.normalizeSettings();
+  ReadingCuesUI.mountReaderControls();ReadingCuesUI.showPreferences(settings);
   const renderer = ReadingCuesRenderer.create({settings, onUpdate: status => {
     document.getElementById('demo-status').textContent = !status.supported ? '请使用新版 Chrome / Edge。' : !settings.enabled ? '正在阅读原文。' : status.busy ? '正在检查文字…' :
       `轻轻提示了 ${status.groups} 组表达。${status.limited ? '长文仅处理了部分内容。' : ''}`;
@@ -11,10 +12,11 @@
   globalThis.readingCuesDemo = renderer;
   for (const input of document.querySelectorAll('[name=demo-style]')) input.addEventListener('change', () => {
     settings = {...settings, enabled: input.value !== 'original', style: input.value === 'underline' ? 'underline' : 'background'};
+    ReadingCuesUI.showPreferences(settings);
     void renderer.setSettings(settings);
   });
-  document.getElementById('demo-density').addEventListener('change', event => {
-    settings = {...settings, maxGroups: Number(event.target.value)}; void renderer.setSettings(settings);
+  ReadingCuesUI.bindReaderControls(async patch=>{
+    settings=ReadingCues.normalizeSettings({...settings,...patch});ReadingCuesUI.showPreferences(settings);await renderer.setSettings(settings);
   });
   document.getElementById('demo-personal-form').addEventListener('submit', event => {
     event.preventDefault(); const input = document.getElementById('demo-term'); const term = input.value.trim();

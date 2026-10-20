@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "轻读 · Reading Cues",
-  "version": "0.2.0",
-  "description": "安装后自动为网页中的逻辑、限制、时间、数值与概念提供本地阅读提示。",
+  "version": "0.3.0",
+  "description": "自动为中文网页提供本地词组分界，支持自选底色与强度、个人词组和可选逻辑提示。",
   "minimum_chrome_version": "105",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "host_permissions": ["http://*/*", "https://*/*"],

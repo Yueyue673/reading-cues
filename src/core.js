@@ -6,7 +6,8 @@
     explanation:'解释、举例与归纳', quantity:'数值、日期与时长', concept:'完整概念'});
   const CATEGORIES = Object.keys(CATEGORY_LABELS);
   const DEFAULTS = Object.freeze({
-    enabled: true, style: 'background', maxGroups: 0,
+    enabled: true, mode: 'words', style: 'background', maxGroups: 0, wordStep: 2,
+    lightColor: '#ffc940', darkColor: '#66d9c4', intensity: 50,
     categories: Object.freeze([...CATEGORIES]), personal: Object.freeze([]), ignored: Object.freeze([])
   });
   const LIMITS = Object.freeze({ terms: 300, termLength: 40, importBytes: 100000, paragraph: 8000 });
@@ -27,7 +28,12 @@
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
     return {
       enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
+      mode: ['words', 'cues', 'personal'].includes(raw.mode) ? raw.mode : DEFAULTS.mode,
       style: ['background', 'underline'].includes(raw.style) ? raw.style : DEFAULTS.style,
+      wordStep: [2,3,4].includes(raw.wordStep) ? raw.wordStep : DEFAULTS.wordStep,
+      lightColor: /^#[0-9a-f]{6}$/i.test(raw.lightColor) ? raw.lightColor.toLowerCase() : DEFAULTS.lightColor,
+      darkColor: /^#[0-9a-f]{6}$/i.test(raw.darkColor) ? raw.darkColor.toLowerCase() : DEFAULTS.darkColor,
+      intensity: Number.isInteger(raw.intensity) && raw.intensity >= 20 && raw.intensity <= 85 ? raw.intensity : DEFAULTS.intensity,
       maxGroups: [0, 1, 2, 3, 5, 8].includes(raw.maxGroups) ? raw.maxGroups : DEFAULTS.maxGroups,
       categories: Array.isArray(raw.categories) ? CATEGORIES.filter(x => raw.categories.includes(x)) : [...CATEGORIES],
       personal: terms(raw.personal), ignored: terms(raw.ignored)
@@ -207,6 +213,44 @@
     return {match, settings};
   }
 
+  // Word boundaries come from the browser's local ICU dictionary, not a list of
+  // supposedly important topics. Explicit personal phrases can correct segmentation.
+  function createReader(lexicon, rawSettings = {}) {
+    const settings = normalizeSettings(rawSettings);
+    const cueMatcher = createMatcher(lexicon, settings);
+    const phraseMatcher = createMatcher({...lexicon, entries:lexicon.entries.filter(e => e.kind === 'literal')},
+      {...settings, categories:[...CATEGORIES]});
+    const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter('zh', {granularity:'word'}) : null;
+    function match(text) {
+      if (typeof text !== 'string' || !settings.enabled) return [];
+      if (settings.mode === 'cues') return cueMatcher.match(text);
+      text = text.slice(0,LIMITS.paragraph);
+      const phrases = phraseMatcher.match(text,{budget:false}).filter(g => settings.mode !== 'personal' || g.category === 'personal');
+      if (settings.mode === 'personal' || !segmenter) return phrases.filter(g => g.category === 'personal');
+      const words = [...segmenter.segment(text)].filter(s => s.isWordLike).map(s => ({start:s.index,end:s.index+s.segment.length}));
+      const starts = new Set(words.map(s=>s.start)), ends = new Set(words.map(s=>s.end));
+      // Never merge through the middle of a dictionary word. Personal phrases are
+      // deliberate overrides; built-in compounds must align to both boundaries.
+      const overrides = phrases.filter(g => g.category === 'personal' || (starts.has(g.spans[0].start) && ends.has(g.spans[0].end)));
+      const units = words.filter(s => [...text.slice(s.start,s.end)].length >= 2 && !overrides.some(g=>intersects(s,g.spans[0])))
+        .map(s=>({id:`word:${s.start}`,category:'word',spans:[s]})).concat(overrides).sort((a,b)=>a.spans[0].start-b.spans[0].start);
+      const ignored = settings.ignored.flatMap(form => occurrences(text,form));
+      const selected=units.filter((g,index) => (g.category === 'personal' || index % settings.wordStep === 0) &&
+        !g.spans.some(s=>ignored.some(x=>intersects(s,x))));
+      // Adjacent personal corrections remain distinct from automatic neighbors.
+      return selected.filter(g=>g.category==='personal'||!selected.some(p=>p.category==='personal'&&
+        (p.spans[0].end===g.spans[0].start||g.spans[0].end===p.spans[0].start)));
+    }
+    return {match,settings,segmentationSupported:!!segmenter};
+  }
+
+  function colorVariables(settings) {
+    const s = normalizeSettings(settings);
+    const rgb = hex => [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)).join(' ');
+    return {'--reading-cues-light-rgb':rgb(s.lightColor),'--reading-cues-dark-rgb':rgb(s.darkColor),
+      '--reading-cues-opacity':String(s.intensity/100)};
+  }
+
   globalThis.ReadingCues = Object.freeze({DEFAULTS, LIMITS, CATEGORIES, CATEGORY_LABELS, safeTerm, normalizeSettings,
-    parseImport, exportDictionary, sitePattern, isSiteEnabled, paragraphBudget, validateLexicon, createMatcher});
+    parseImport, exportDictionary, sitePattern, isSiteEnabled, paragraphBudget, validateLexicon, createMatcher, createReader, colorVariables});
 })();

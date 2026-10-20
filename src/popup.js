@@ -2,6 +2,7 @@
   'use strict';
   const UI = ReadingCuesUI;
   UI.mountCategories('category-choices');
+  UI.mountReaderControls();
   const button = document.getElementById('site-toggle');
   const scanStatus = document.getElementById('scan-status');
   let tab, pattern, active = true, poll = 0;
@@ -27,6 +28,7 @@
     const busy = statuses.some(x => x.busy);
     scanStatus.textContent = !statuses.length ? '已自动开启。刚安装或更新时，请刷新当前网页。' :
       statuses.every(x => !x.supported) ? '请升级到支持文字高亮的 Chrome / Edge。' :
+      data.settings.mode==='words' && statuses.some(x=>x.segmentationSupported===false) ? '此浏览器不支持本地分词。请升级浏览器，或选择逻辑提示模式。' :
       busy ? '正在更新正文提示…' : `当前页面提示 ${groups} 组表达${statuses.some(x => x.limited) ? '；长页面仅处理了部分正文' : ''}。`;
     if (busy && poll++ < 12) setTimeout(() => void UI.act(refresh), 250);
   }

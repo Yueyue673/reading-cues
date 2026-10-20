@@ -2,6 +2,7 @@
   'use strict';
   const UI = ReadingCuesUI;
   UI.mountCategories('category-choices');
+  UI.mountReaderControls();
   let settings;
   function renderList(name, items) {
     const list = document.getElementById(`${name}-list`);

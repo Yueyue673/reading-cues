@@ -1,63 +1,61 @@
 # 轻读 · Reading Cues
 
-**打开网页，自动标记。把注意留给阅读。**
+**看清词组边界，按自己的节奏读。**
 
-本地运行的桌面浏览器扩展。安装并完成浏览器的网站访问授权后，普通 HTTP / HTTPS 网页自动获得阅读提示，**不用逐站启用，不用先配置个人词库**。页面没有额外按钮、浮窗、提示音或操作教程。
+在桌面 Chrome / Edge 中本地运行的中文阅读辅助扩展。安装授权后，全局自动处理普通 HTTP / HTTPS 网页；不用逐站开启，没有网页浮窗。默认通过本地分词和交替底色提供词组边界，颜色不表示重要程度。
 
-**[下载 v0.2.0](https://github.com/Yueyue673/reading-cues/releases/latest) · [研究与设计依据](docs/RESEARCH.md) · [验证报告](docs/VALIDATION.md) · [反馈与贡献](CONTRIBUTING.md)**
+**[下载 v0.3.0](https://github.com/Yueyue673/reading-cues/releases/latest) · [研究复核](docs/RESEARCH-REVIEW-0.3.md) · [验证记录](docs/VALIDATION.md) · [反馈](https://github.com/Yueyue673/reading-cues/issues)**
 
-![轻读自动提示：网页文字保持原样，条件、范围和完整概念自然融入正文](docs/preview.png)
+![词组分界与自由配色试读](docs/preview.png)
 
-## 这次改了什么
+## 本次改进
 
-- **全局自动**：不再使用 v0.1 的逐站白名单。新网页、动态新增的正文、普通 HTTP / HTTPS 嵌入页自动处理；已有标签页也会尝试自动注入。
-- **18 → 374 条原创规则**：341 条字面词条（568 种明确列举的词形）、20 条配对规则（32 种配对形式）、13 条上下文 / 数值模式。
-- **9 类覆盖**：否定与范围、条件与例外、转折、因果、递进、顺序与时间、解释与举例、完整数值、完整概念，默认全部启用。
-- **数量自动分配**：长段落自动获得更多提示，不再固定最多两组；仍限制提示字数占比，并尽量把线索分布到段落不同位置。
-- **完整表达**：例如分别保留“降低了20元”和“降低到20元”；“注意力机制”优先于其中的“注意力”。相同概念每个文本块只提示一次。
-- **安静运行**：不改写原文，不拆分网页文字节点，不改变字号、字色或换行。动态追加内容时保留有效提示，减少闪动。
+- **选词方向调整**：默认“词组分界”。浏览器本地分词，优先保留完整的多字词和连续表达，不再默认只找逻辑连接词。可以选择隔 1 / 2 / 3 个词组标记。
+- **三种方式可选**：词组分界、逻辑与数值提示、只提示个人词库。374 条原创逻辑 / 数值 / 概念规则仍可使用，但不代表文章重点。
+- **修复清空重画的闪烁路径**：保留未变化的原生高亮和文字范围；小段新增只处理新增块；样式变化独立合并，滚动中延后处理。增加真实视频播放、鼠标移动、播放器控件和滚动回归检查。
+- **标记更清楚**：默认底色强度从约 17% 提高到 50%；六组预设、自由取色，浅色 / 深色网页分别设置，强度可调 20–85%。保留清楚的下划线样式。
+- **文字对比保护**：底色影响清晰度时自动配深浅字色；图片背景用下划线。保持字号、字形和换行，不拆分或包裹网页文字节点。
 
-需要时才打开插件：可以暂停当前网站、暂停全部、切换浅底色 / 下划线，或管理个人词库。设置保存在本机。没有大模型 API、账户、遥测、远程词库或运行时第三方依赖。
+没有大模型 API、账户、遥测、远程词库或运行时第三方依赖。设置保存在本机。工程测试通过不等于阅读辅助效果已得到证明。
 
-## 安装，不需要编程
+## 安装与升级
 
-1. 到 [Releases](https://github.com/Yueyue673/reading-cues/releases/latest) 下载 `reading-cues-0.2.0.zip`，解压到固定目录。
-2. Chrome 地址栏打开 `chrome://extensions`；Edge 打开 `edge://extensions`。
-3. 开启**开发者模式** → **加载已解压的扩展程序** → 选择包含 `manifest.json` 的目录。
-4. 完成浏览器的网站访问授权。**打开普通网页即可自动工作**；已打开的页面如果没有更新，刷新一次。
+1. 从 [Releases](https://github.com/Yueyue673/reading-cues/releases/latest) 下载 `reading-cues-0.3.0.zip`，完整解压到固定目录。
+2. Chrome 打开 `chrome://extensions`；Edge 打开 `edge://extensions`。
+3. 开启**开发者模式** → **加载已解压的扩展程序** → 选择含 `manifest.json` 的目录。
+4. 完成浏览器的网站访问授权。打开普通网页即可自动工作；已有页面刷新一次。
 
-无需到每个网站再点击“开启”。扩展不会绕过浏览器保护页或你在浏览器里手动设置的访问限制。
+从 v0.2 升级：可先导出个人词库备份，用新包覆盖原目录，点击扩展管理页的**重新加载**，然后刷新文章页。个人词库、忽略词、样式、显式暂停和暂停站点保留；默认阅读方式改为词组分界。v0.3 没有新增权限。
 
-解压目录中的 `demo.html` 可直接双击离线试读，不保存粘贴的文字。目前尚未上架扩展商店；手机、Firefox 和 Safari 未适配。
+从 v0.1 升级还会从逐站白名单改为全局访问，浏览器可能要求确认新增权限或重新启用；完成后不再逐站操作。手动加载的包不会自动更新。
 
-### 从 v0.1.0 升级
+包内 `demo.html` 可双击离线试读，也可粘贴自己的文字比较；输入不保存。目前尚未上架商店，安卓、Firefox 和 Safari 未适配。
 
-可以先在旧版本设置页导出个人词库备份，再把新包覆盖到原安装目录，在扩展管理页点击重新加载。**新版从逐站访问改成全局访问，浏览器可能要求确认新增权限或重新启用扩展。** 这是浏览器控制的升级步骤，确认后不再逐站授权。
+## 按需要微调
 
-使用同一安装目录重载时，个人词库、忽略词与样式会保留；旧白名单改为全局自动，旧默认两组限制迁移为自动。显式设置的全局暂停会保留。重新加载后刷新文章页。
+打开插件可以选阅读方式、标记样式、分界密度和颜色。底色强度与标记数量分别调整；下划线跟随原文字色，取色设置用于底色样式。
 
-## 词库与控制
+分词可能切错，尤其是人名地名或歧义表达。选中 2–40 字的完整词组 → 右键 **轻读：以后提示…**，可用个人词组纠正；个人词组优先且每次出现都提示。设置页可以添加、移除、不再提示，以及导入 / 导出 JSON。导入只合并个人词与忽略词，不导入网站或权限。
 
-默认词库直接工作。选中 2–40 字的完整词语，右键选择**轻读：以后提示…**，可补充个人词库。设置页支持添加、移除、忽略和 JSON 备份；导入只合并个人词语，不导入模式、网站或权限。
+全局默认运行，必要时可以暂停当前网站或全部。站点暂停按协议与域名保存，覆盖其普通嵌入页，不自动包含子域名；浏览器匹配不能区分端口。插件不记录浏览历史。浏览器自身的网站访问限制优先。
 
-全局模式只保存主动暂停的网站，不记录浏览历史。暂停顶层网站时，它里面的普通嵌入页也暂停；其他网页继续自动工作。网站暂停按协议和域名保存，不自动包含子域名；浏览器匹配不能区分端口。浏览器自身的网站访问限制优先于插件设置。
+## 研究与边界
 
-“无感”指不要求反复操作、不加页面控件、保留原文；不代表绕过浏览器的无痕窗口权限。浏览器隐私模式是否允许扩展运行，由浏览器设置决定。
+中文词界研究有正面、无收益与负面结果，错误边界可能干扰阅读；注意力维持、词义提取、视觉拥挤和理解监控也不是同一困难。当前方案根据明确的使用偏好提供可调的边界线索，不能宣称已经改善中文成人 ADHD / 阅读障碍使用者的理解。具体证据、相反结果与待验证假设见 [研究复核](docs/RESEARCH-REVIEW-0.3.md)。
 
-## 已知边界
+- 分词使用浏览器本地 `Intl.Segmenter`；不理解篇章，不保证边界正确，也不判断语义重点。不同浏览器版本可能产生不同边界。内置连续表达只用于合并词组，配对 / 数值逻辑筛选属于可选逻辑模式。
+- 默认只交替标记 2 字以上词组。它不是给每个字上色，也不保证所有概念都自动合并。个人词组可覆盖分词，忽略列表在全部模式生效。
+- 普通 HTTP / HTTPS iframe 自动处理；PDF、图片文字、Shadow DOM、浏览器内置页与商店保护页未支持。
+- 编辑器、代码、导航、链接、标题、作者已有语义强调、动态通知与媒体控件保持原样。
+- 每连续文本块最多 8,000 个 UTF-16 单元；每文档最多约 300,000 单元、60,000 个遍历节点或 6,000 组标记，超限只处理部分内容。弹窗会说明，不在网页弹通知。持续更新的长页面可能先触及数量上限。
+- 默认强度与密度是工程起点，不是最佳医学参数。对比度保护是有限工程检查，不能覆盖所有背景、透明文字和混合色；复杂页面与不同显卡的实际体验仍需反馈。
+- “全局自动”不绕过浏览器限制；无痕窗口是否允许运行由浏览器设置控制。
 
-- 主要针对中文正文；有限词形、配对和数值规则仍会误标或漏标，不能判断文章重点、语义真伪或全部否定范围。
-- 普通 HTTP / HTTPS iframe 已加入自动处理；Shadow DOM、PDF、图片文字、浏览器内置页和扩展商店保护页不在当前支持范围。
-- 编辑区、代码、导航、链接、标题、作者已有的语义强调与动态通知保持原样，不跨越这些边界配对。
-- 每连续文本块最多处理 8,000 个 UTF-16 单元；每文档最多约 300,000 单元、60,000 个遍历节点或 2,000 组提示。超限会在插件弹窗说明；不会在网页弹通知。
-- 自动数量是工程起点，不是最优医学参数。字符预算默认 22%，短文本保留完整短语 / 日期的最小预算为 12 单元。手动上限也可调整。
-- 数值模式只分组表达形式，不计算含义、验证日历合法性或提取财务结论。背景不确定或可能降低对比度时，浅底色会回退为下划线。
-
-这仍是一项可个性化的阅读辅助实验，对中文 ADHD / 阅读障碍使用者的效果尚未验证。技术覆盖扩大不等于阅读效果已得到证明。
+试用时先固定颜色比较原文与分界，再分别比较密度与强度；观察整段理解和负担，不只检查高亮处。见 [试用方法](docs/TRYOUT.md)。
 
 ## 开发
 
-需要 Node.js 22+。
+Node.js 22+：
 
 ```sh
 npm ci
@@ -69,27 +67,25 @@ npm run package
 npm run preview
 ```
 
-仅构建时可离线执行 `node scripts/build.mjs`，无需安装开发依赖。加载目录为 `dist/extension/`；安装包输出在 `dist/`。
+只构建可离线运行 `node scripts/build.mjs`。扩展目录为 `dist/extension/`，安装包输出到 `dist/`。
 
 ```text
-src/core.js          纯函数匹配、自动密度、输入校验、全局站点判断
-src/lexicon.json     374 条原创规则、稳定 ID、原创正反例
-src/renderer.js      Range 高亮、动态页面、完整配对、资源上限
-src/background.js    设置写入、旧版迁移、安装时处理已有网页
-src/content.js       每个网页 / 嵌入页的自动启动与暂停
-src/manifest.json    全局静态内容脚本与访问范围
-src/popup.*          自动运行状态与可选暂停
-src/options.*        个人词库、偏好、暂停站点与备份
-src/demo.*           可离线运行的试读页
-tests/              词条反例、独立语段、迁移和真实浏览器测试
+src/core.js        本地分词、连续表达合并、逻辑匹配、设置校验
+src/lexicon.json   374 条原创连续 / 配对 / 数值规则与原创例句
+src/renderer.js    增量范围更新、原生高亮复用、配色与资源上限
+src/background.js 设置写入、升级迁移与已有网页注入
+src/content.js    网页 / 嵌入页自动启动与暂停
+src/ui-common.js  阅读方式、取色、强度与即时预览
+src/popup.*       自动状态与可选设置
+src/options.*     个人词库、备份、偏好与暂停站点
+src/demo.*        离线试读
+tests/            语言反例、分词边界、迁移与真实浏览器回归
 ```
-
-[TRYOUT.md](docs/TRYOUT.md) 用来观察实际阅读负担和理解；[ROADMAP.md](docs/ROADMAP.md) 记录后续方向。自动测试与使用者效果分别记录。
 
 ## English
 
-Reading Cues is a local Chinese reading-assistance experiment for desktop Chromium. Version 0.2 runs automatically on ordinary HTTP(S) pages after installation and browser approval, without per-site activation or page overlays. It includes 374 original literal, paired and numeric/context rules, adaptive cue density, automatic HTTP(S) iframe support, personal phrases and optional site/global pause. No LLM, telemetry or runtime dependencies. Effectiveness for Chinese readers with ADHD or dyslexia has not been established.
+Reading Cues is a local Chinese reading-assistance experiment for desktop Chromium. Version 0.3 defaults to word-group boundary cues using local `Intl.Segmenter`, complete phrase overrides and alternating backgrounds. Optional logic cues and personal-only mode remain available. Custom light/dark colors, six presets and adjustable intensity improve visibility. Incremental updates retain unchanged native highlights; regression tests include pointer movement and actual video frames. No LLM, telemetry or runtime dependencies. Word boundaries may be wrong, and effectiveness for Chinese readers with ADHD or dyslexia remains unestablished.
 
 ## 许可
 
-[MIT](LICENSE)，适用于原创代码、规则、例句和文档。没有捆绑 Chinese-DiMLex 或其他第三方词库。开发依赖保留各自许可。详见 [隐私与权限说明](PRIVACY.md)。
+[MIT](LICENSE)，适用于原创代码、规则、例句和文档。未捆绑 Chinese-DiMLex 或其他外部词库；浏览器自带的分词实现由浏览器提供。开发依赖保留各自许可。[隐私与权限](PRIVACY.md) · [贡献规范](CONTRIBUTING.md) · [路线](docs/ROADMAP.md)

@@ -1,15 +1,16 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>轻读 · 把注意留给文字</title><link rel="stylesheet" href="ui.css"><script src="core.js" defer></script><script src="lexicon.js" defer></script><script src="renderer.js" defer></script><script src="demo.js" defer></script></head>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>轻读 · 把注意留给文字</title><link rel="stylesheet" href="ui.css"><script src="core.js" defer></script><script src="lexicon.js" defer></script><script src="renderer.js" defer></script><script src="ui-common.js" defer></script><script src="demo.js" defer></script></head>
 <body><div class="demo-layout">
   <aside class="demo-sidebar" data-reading-cues-ignore>
     <div class="brand"><img src="icons/48.png" alt=""><div><b>轻读</b><small>READING CUES</small></div></div>
     <p class="eyebrow">一个小小的阅读实验</p><p class="muted">打开网页，自动标记。<br>把注意留给阅读。</p>
+    <div id="reader-controls" class="stack"></div><hr class="divider">
     <fieldset><legend>读读看，哪种更舒服</legend><div class="choices">
       <label class="choice"><input type="radio" name="demo-style" value="original">原文</label>
-      <label class="choice"><input type="radio" name="demo-style" value="background" checked><span class="preview-mark">浅底色</span></label>
+      <label class="choice"><input type="radio" name="demo-style" value="background" checked><span class="preview-mark">底色</span></label>
       <label class="choice"><input type="radio" name="demo-style" value="underline"><span class="preview-line">下划线</span></label>
     </div></fieldset>
-    <label class="row" for="demo-density">提示数量<select id="demo-density"><option value="0">自动，随段落长度</option><option value="1">每段最多 1 组</option><option value="2">每段最多 2 组</option><option value="3">每段最多 3 组</option><option value="5">每段最多 5 组</option><option value="8">每段最多 8 组</option></select></label>
-    <hr class="divider"><p id="demo-status" class="status" role="status">正在准备文字…</p><p class="hint">提示来自本地规则。<br>它们不代表全文的重点。</p>
+    <div id="color-controls"></div>
+    <hr class="divider"><p id="demo-status" class="status" role="status">正在准备文字…</p><p class="hint">分词可能有误，颜色不表示重要程度。<br>本地处理，保留原文与换行。</p>
     <details><summary>试着加一个自己的词</summary><form id="demo-personal-form" class="stack"><label class="sr-only" for="demo-term">需要提示的词语</label><input id="demo-term" type="text" placeholder="例如：认知负荷" maxlength="80" required><button type="submit">加入这次试读</button></form><p id="demo-personal-status" class="hint" role="status"></p></details>
     <p class="hint" style="margin-top:25px">本页不保存输入内容。<br>没有模型调用或网络请求。</p>
     <a class="hint" href="https://github.com/Yueyue673/reading-cues" target="_blank" rel="noreferrer">开源项目 ↗</a>
@@ -19,16 +20,16 @@
     <article id="reading-article" aria-label="试读文章">
       <p>有时，我们面对的不是一篇特别难的文章。只是文字挤在一起，句子拐了几个弯，注意就悄悄走开了。这不一定是努力不够。我们可以先调整眼前的阅读环境，让重新开始变得容易一点。</p>
       <p>打开网页后，轻读会自动提供提示，无需逐个网站开启。只有你主动暂停时，提示才会停止。它们不改写原文，也不替你下结论。你仍然可以按自己的节奏，读完一整段，停下来想一想，再继续往下。</p>
-      <h2>给句意的转弯处，一点线索</h2>
+      <h2>先看清词组，再跟着句意往下读</h2>
       <p>并非所有表达都需要变得醒目。满页都是颜色时，寻找真正需要的信息仍然很费力。少量稳定的线索，也许可以让那些容易读漏的地方更容易被注意到。</p>
-      <p>虽然一句话里有很多词，但是有些表达会悄悄改变句意。比如一个条件、一处例外，或是对结论范围的限制。我们先把这些完整表达保留下来，避免只看到其中一个字。</p>
-      <p>除非你明确需要，否则不必把所有文字都做成提示。熟悉的概念可以保持原样；反复卡住的词，可以加入自己的词库。认知负荷也是一个可以一起辨认的完整概念。</p>
+      <p>默认的词组分界，用交替底色提供边界线索。它不判断哪些内容重要，也不要求你记住颜色含义。浏览器的本地分词可能会切错；遇到这种情况，可以选中完整词组，加入个人词库来纠正。</p>
+      <p>如果你经常漏看条件或范围，可以另选逻辑提示模式。如果只想保留自己的几个词，也可以只用个人词库。三种方式分别尝试，留意自己读完一整段后的理解和负担。</p>
       <h2>有帮助，比看起来醒目更重要</h2>
       <p>即使阅读速度没有改变，也可以留意自己是否更愿意继续。读完后能否说清段落的意思？没有提示的内容，有没有反而被忽略？这些感受和理解，都值得认真记录。</p>
       <p>一种样式看起来舒服，并不意味着它适合每个人。尽管我们尽量保持克制，仍然可能选错表达。你可以减少数量、换一种样式，或随时回到原文。</p>
       <p>不但支持尝试，还应该允许退出。改变一点点，再观察几天。找到适合你的节奏，可以是一件慢慢发生的事。</p>
     </article>
-    <div class="endnote" data-reading-cues-ignore>这是一项阅读辅助实验。现有研究不能证明这套中文词库对 ADHD 或阅读障碍使用者普遍有效。你的实际体验会决定下一步如何改进。</div>
+    <div class="endnote" data-reading-cues-ignore>这是一项阅读辅助实验。现有研究不能证明自动分词与底色对中文 ADHD 或阅读障碍使用者普遍有效。清楚、稳定、读完更省力，都需要分别观察。</div>
     <section class="demo-custom" data-reading-cues-ignore><h2>也可以试一段自己的文字</h2><p class="hint">只在本页内存中处理；离开或刷新后清除。不要把同一篇文章的重复阅读，当成速度改善的证据。</p><label class="sr-only" for="custom-text">粘贴想试读的文字</label><textarea id="custom-text" maxlength="24000" placeholder="粘贴一小段文字，用空行分段…"></textarea><div class="demo-actions"><button id="use-custom" class="primary">试读这段文字</button><button id="restore-sample">恢复示例</button></div><p id="custom-status" class="status" role="status"></p></section>
   </main>
 </div></body></html>

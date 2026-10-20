@@ -43,11 +43,19 @@ test('v0.1 whitelist migrates to global defaults while retaining personal data a
   await vm.runInContext('migrateStorage()',s.context);
   assert.equal(s.store.sites,undefined);assert.equal(s.store.settings.maxGroups,0);assert.equal(s.store.settings.style,'underline');
   assert.deepEqual(s.store.settings.personal,['自定义词语']);assert.deepEqual(s.store.settings.ignored,['然而']);assert.ok(s.store.settings.categories.includes('quantity'));
-  assert.ok(!s.store.settings.categories.includes('contrast'));assert.equal(s.store.storageVersion,2);
+  assert.ok(!s.store.settings.categories.includes('contrast'));assert.equal(s.store.storageVersion,3);
 });
 test('migration preserves explicit global pause and is idempotent',async()=>{
   const s=setup({settings:{enabled:false,maxGroups:1}});await vm.runInContext('migrateStorage()',s.context);const before=structuredClone(s.store);
   await vm.runInContext('migrateStorage()',s.context);assert.deepEqual(s.store,before);assert.equal(s.store.settings.enabled,false);assert.equal(s.store.settings.maxGroups,1);
+});
+test('v0.2 upgrades to word boundaries while retaining terms, style, pause and exclusions',async()=>{
+  const s=setup({storageVersion:2,settings:{enabled:false,style:'underline',maxGroups:2,categories:['quantity'],personal:['海洋生态系统'],ignored:['然而']},excludedSites:['https://paused.test/*']});
+  await vm.runInContext('migrateStorage()',s.context);
+  assert.equal(s.store.storageVersion,3);assert.equal(s.store.settings.mode,'words');assert.equal(s.store.settings.enabled,false);assert.equal(s.store.settings.maxGroups,2);
+  assert.deepEqual(s.store.settings.categories,['quantity']);assert.deepEqual(s.store.settings.personal,['海洋生态系统']);assert.deepEqual(s.store.excludedSites,['https://paused.test/*']);
+  await s.send({type:'settings',patch:{lightColor:'#aabbcc',darkColor:'#102030',intensity:75,wordStep:3,mode:'personal'}});
+  assert.equal(s.store.settings.lightColor,'#aabbcc');assert.equal(s.store.settings.intensity,75);assert.equal(s.store.settings.wordStep,3);assert.equal(s.store.settings.mode,'personal');
 });
 test('legacy dynamic registration is removed during migration',async()=>{
   const s=setup();s.scripts.push({id:'reading-cues-sites'});await vm.runInContext('cleanupLegacyScripts()',s.context);assert.equal(s.scripts.length,0);

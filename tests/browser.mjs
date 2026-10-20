@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
 import {readFile, mkdir, mkdtemp, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -38,7 +39,7 @@ const results=[]; let browser, extension, browserVersion;
 async function check(name,fn){const start=Date.now();await fn();results.push({name,passed:true,milliseconds:Date.now()-start});console.log('PASS '+name);}
 const launchOptions = {headless:true,...(process.env.READING_CUES_BROWSER_EXECUTABLE?{executablePath:process.env.READING_CUES_BROWSER_EXECUTABLE}:{})};
 const highlighted = page => page.evaluate(()=>[...CSS.highlights].flatMap(([name,h])=>[...h].map(r=>({name,text:r.toString(),id:r.startContainer.parentElement.closest('[id]')?.id}))));
-async function installRenderer(page,settings={}){
+async function installRenderer(page,settings={mode:'cues'}){
   for(const name of ['core.js','lexicon.js','renderer.js'])await page.addScriptTag({path:path.join(dist,name)});
   await page.evaluate(async config=>{globalThis.renderer=ReadingCuesRenderer.create({settings:config});await renderer.scan();},settings);
 }
@@ -56,7 +57,7 @@ try{
     const marks=await highlighted(page);
     assert.equal(marks.find(x=>x.id==='cross')?.text,'不一定');
     assert.deepEqual(marks.filter(x=>x.id==='pair').map(x=>x.text),['只有','才']);
-    assert.equal(marks.find(x=>x.id==='dark')?.name,'reading-cues-dark');
+    assert.ok(marks.find(x=>x.id==='dark')?.name.startsWith('reading-cues-dark'));
     assert.deepEqual(marks.filter(x=>x.id==='safe').map(x=>x.text),['不但']);
     for(const id of ['strong','link','hidden','editor'])assert.equal(marks.filter(x=>x.id===id).length,0,id);
   });
@@ -78,13 +79,104 @@ try{
     await page.evaluate(()=>renderer.setSettings({enabled:true}));assert.ok((await highlighted(page)).length>0);
     await page.evaluate(()=>renderer.destroy());assert.equal((await highlighted(page)).length,0);assert.equal(await page.locator('[data-reading-cues-style]').count(),0);
   });
+  await check('scroll-driven style changes keep highlights visible and defer scanning until scrolling settles',async()=>{
+    await page.goto(base+'/fixture');await installRenderer(page,{});await page.waitForTimeout(300);
+    const probe=await page.evaluate(async()=>{
+      const before=renderer.getSnapshot().scans,highlights=[...CSS.highlights.values()],ranges=highlights.flatMap(h=>[...h]);
+      let blankFrames=0,maxDuring=before;
+      for(let i=0;i<75;i++) {
+        document.body.classList.toggle('scrolling-state',i%2===0);
+        document.querySelector('article').style.transform=`translateY(${i%2}px)`;
+        window.dispatchEvent(new Event('scroll'));
+        await new Promise(requestAnimationFrame);
+        if(![...CSS.highlights.values()].some(h=>h.size))blankFrames++;
+        maxDuring=Math.max(maxDuring,renderer.getSnapshot().scans);
+      }
+      globalThis.scrollOldHighlights=highlights;globalThis.scrollOldRanges=ranges;
+      return {before,maxDuring,blankFrames};
+    });
+    assert.equal(probe.blankFrames,0);assert.equal(probe.maxDuring,probe.before);
+    results.push({name:'scroll-measurement',...probe});
+    await page.waitForFunction(n=>renderer.getSnapshot().scans>n&&!renderer.getSnapshot().busy,probe.before);
+    assert.equal(await page.evaluate(()=>scrollOldHighlights.every(h=>[...CSS.highlights.values()].includes(h))),true);
+    assert.equal(await page.evaluate(()=>scrollOldRanges.every(r=>[...CSS.highlights.values()].some(h=>h.has(r)))),true);
+  });
+  await check('small appends scan only new paragraphs and text edits leave no stale ranges',async()=>{
+    await page.goto(base+'/fixture');await page.evaluate(()=>document.querySelector('article').replaceChildren(...Array.from({length:180},(_,i)=>{const p=document.createElement('p');p.id='p'+i;p.textContent='公园里的树木沿着河岸生长，游客慢慢走过石桥。';return p;})));
+    await installRenderer(page,{});
+    const before=await page.evaluate(()=>{globalThis.oldParagraphRanges=[...CSS.highlights.values()].flatMap(h=>[...h]);return renderer.getSnapshot().scans;});
+    await page.evaluate(()=>{const p=document.createElement('p');p.id='appended';p.textContent='今天准备乘坐火车去海边看日出。';document.querySelector('article').append(p);});
+    await page.waitForFunction(n=>renderer.getSnapshot().scans>n&&!renderer.getSnapshot().busy,before);
+    assert.ok(await page.evaluate(()=>renderer.getSnapshot().scannedCharacters)<100);
+    assert.equal(await page.evaluate(()=>oldParagraphRanges.every(r=>[...CSS.highlights.values()].some(h=>h.has(r)))),true);
+    await page.evaluate(()=>document.getElementById('appended').firstChild.replaceData(0,2,'明天清晨'));
+    await page.waitForTimeout(350);await steady(page);
+    const actual=await page.evaluate(()=>{
+      const text=document.getElementById('appended').textContent;
+      return {expected:ReadingCues.createReader(ReadingCuesLexicon).match(text).flatMap(g=>g.spans.map(s=>text.slice(s.start,s.end))),actual:[...CSS.highlights.values()].flatMap(h=>[...h]).filter(r=>r.startContainer.parentElement.id==='appended').map(r=>r.toString())};
+    });
+    assert.deepEqual(actual.actual.sort(),actual.expected.sort());
+    await page.evaluate(()=>renderer.destroy());
+  });
+  await check('real video playback, pointer movement and animated controls never blank or repaint unchanged article ranges',async()=>{
+    await page.goto(base+'/fixture');
+    await page.evaluate(()=>{
+      const panel=document.createElement('div');panel.id='media-panel';panel.innerHTML='<video muted playsinline width="160" height="90"></video><span role="timer">00:00</span><div role="progressbar" aria-label="播放进度"></div><div role="tooltip">播放提示</div>';
+      document.body.append(panel);
+    });
+    await installRenderer(page,{});await page.waitForTimeout(600);
+    await page.evaluate(async()=>{
+      const canvas=document.createElement('canvas');canvas.width=160;canvas.height=90;const ctx=canvas.getContext('2d');
+      const video=document.querySelector('video');video.srcObject=canvas.captureStream(30);
+      let frame=0;globalThis.videoFrames=0;
+      const count=()=>{videoFrames++;video.requestVideoFrameCallback(count);};video.requestVideoFrameCallback(count);
+      globalThis.animateMedia=setInterval(()=>{
+        ctx.fillStyle=frame++%2?'#f38':'#38f';ctx.fillRect(0,0,160,90);
+        document.querySelector('[role=timer]').textContent='00:'+String(frame);
+        document.querySelector('[role=progressbar]').style.width=frame%100+'px';
+        document.querySelector('[role=tooltip]').classList.toggle('active',frame%2===0);
+      },30);
+      globalThis.mouseListener=()=>document.body.classList.toggle('mouse-active');document.addEventListener('pointermove',mouseListener);
+      globalThis.baselineHighlights=[...CSS.highlights.values()];globalThis.baselineRanges=baselineHighlights.flatMap(h=>[...h]);
+      globalThis.mediaStartScans=renderer.getSnapshot().scans;globalThis.blankMediaFrames=0;
+      globalThis.watchMarks=setInterval(()=>{if(![...CSS.highlights.values()].some(h=>h.size))blankMediaFrames++;},5);
+      await video.play();
+    });
+    const hashes=[];
+    for(let i=0;i<10;i++){
+      await page.mouse.move(50+i*12,40+i*8);await page.waitForTimeout(40);
+      if(i%3===0)hashes.push(createHash('sha256').update(await page.locator('article').screenshot()).digest('hex'));
+    }
+    const measure=await page.evaluate(()=>({frames:videoFrames,blank:blankMediaFrames,scans:renderer.getSnapshot().scans,before:mediaStartScans}));
+    assert.ok(measure.frames>=3,'must exercise decoded video frames');assert.equal(measure.blank,0);assert.equal(measure.scans,measure.before);
+    assert.equal(new Set(hashes).size,1,'article pixels stay identical during playback and pointer movement');
+    results.push({name:'video-pointer-measurement',...measure,identicalArticleScreenshots:hashes.length});
+    await page.evaluate(()=>{clearInterval(animateMedia);clearInterval(watchMarks);document.removeEventListener('pointermove',mouseListener);document.querySelector('video').pause();document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());});
+    await page.waitForTimeout(650);await steady(page);
+    assert.equal(await page.evaluate(()=>baselineRanges.every(r=>[...CSS.highlights.values()].some(h=>h.has(r)))),true);
+    assert.equal(await page.evaluate(()=>baselineHighlights.every(h=>[...CSS.highlights.values()].includes(h))),true);
+    await page.evaluate(()=>renderer.destroy());
+  });
   await check('unsupported browser fails quietly without changing page text',async()=>{
     await page.goto(base+'/fixture');await page.evaluate(()=>Object.defineProperty(globalThis,'Highlight',{value:undefined,configurable:true}));await installRenderer(page);assert.equal(await page.evaluate(()=>renderer.getSnapshot().supported),false);
     assert.equal(await page.locator('article').textContent(),original.text);
   });
+  await check('custom strong colors preserve text contrast in light and dark paragraphs',async()=>{
+    await page.goto(base+'/fixture');await installRenderer(page,{lightColor:'#111111',darkColor:'#ffcc00',intensity:85});
+    const data=await page.evaluate(()=>{
+      const lum=rgb=>rgb.map(n=>n/255).map(n=>n<=.04045?n/12.92:((n+.055)/1.055)**2.4).reduce((s,n,i)=>s+n*[.2126,.7152,.0722][i],0);
+      return [...CSS.highlights].flatMap(([name,h])=>[...h].filter(r=>['cross','dark'].includes(r.startContainer.parentElement.closest('[id]')?.id)).map(r=>{
+        const el=r.startContainer.parentElement,style=getComputedStyle(el,'::highlight('+name+')'),fg=style.color.match(/[\d.]+/g).map(Number),fill=style.backgroundColor.match(/[\d.]+/g).map(Number);
+        const dark=el.closest('#dark'),bg=dark?[23,35,31]:[255,255,255],result=bg.map((n,i)=>fill[i]*fill[3]+n*(1-fill[3]));
+        const a=lum(fg),b=lum(result);return {name,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
+      }));
+    });
+    assert.ok(data.length>=2);assert.ok(data.every(x=>x.ratio>=4.5),JSON.stringify(data));
+    await page.evaluate(()=>renderer.destroy());
+  });
   await check('long article yields between batches and respects resource limits',async()=>{
     await page.goto(base+'/fixture');await page.evaluate(()=>document.querySelector('article').replaceChildren(...Array.from({length:2400},()=>{const p=document.createElement('p');p.textContent='这是一个长文章中的普通段落，不一定能更快读完，但应当保留原文并允许随时暂停。';return p;})));
-    await installRenderer(page);const snapshot=await page.evaluate(()=>renderer.getSnapshot());assert.ok(snapshot.limited);assert.ok(snapshot.groups<=2000);assert.ok(snapshot.milliseconds<5000);results.push({name:'long-article-measurement',...snapshot});
+    await installRenderer(page,{});const snapshot=await page.evaluate(()=>renderer.getSnapshot());assert.ok(snapshot.limited);assert.ok(snapshot.groups<=6000);assert.ok(snapshot.milliseconds<5000);results.push({name:'long-article-measurement',...snapshot});
   });
   await check('demo light/dark/mobile, personal words, original and safe pasted text',async()=>{
     await page.goto(base+'/demo.html');await page.waitForFunction(()=>globalThis.readingCuesDemo&&!readingCuesDemo.getSnapshot().busy);
@@ -93,7 +185,7 @@ try{
     await page.screenshot({path:path.join(artifacts,'demo-light.png'),fullPage:true,caret:'initial'});
     await page.locator('[name=demo-style][value=original]').check();assert.equal((await highlighted(page)).length,0);
     await page.locator('[name=demo-style][value=underline]').check();await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>h.size));
-    await page.locator('summary').click();await page.locator('#demo-term').fill('阅读环境');await page.locator('#demo-personal-form button').click();
+    await page.locator('summary').filter({hasText:'试着加一个自己的词'}).click();await page.locator('#demo-term').fill('阅读环境');await page.locator('#demo-personal-form button').click();
     await page.waitForFunction(()=>[...CSS.highlights.values()].some(h=>[...h].some(r=>r.toString()==='阅读环境')));
     await page.locator('#custom-text').fill('<img src=x onerror=alert(1)> 这不一定需要额外解释。');await page.locator('#use-custom').click();assert.equal(await page.locator('#reading-article img').count(),0);assert.ok((await page.locator('#reading-article').textContent()).includes('<img'));
     await page.locator('#restore-sample').click();await page.emulateMedia({colorScheme:'dark'});await page.locator('[name=demo-style][value=background]').check();await page.waitForFunction(()=>!readingCuesDemo.getSnapshot().busy);await page.screenshot({path:path.join(artifacts,'demo-dark.png'),fullPage:true,caret:'initial'});
@@ -120,7 +212,7 @@ try{
   await check('fresh installation automatically marks two new origins without opening any extension UI',async()=>{
     await waitStatus(s=>s.groups>0&&!s.busy);await waitStatus(s=>s.groups>0&&!s.busy,otherTabId);
     const data=await worker.evaluate(()=>chrome.storage.local.get(['settings','excludedSites']));
-    assert.equal(data.settings.enabled,true);assert.equal(data.settings.maxGroups,0);assert.deepEqual(data.excludedSites,[]);
+    assert.equal(data.settings.enabled,true);assert.equal(data.settings.mode,'words');assert.equal(data.settings.maxGroups,0);assert.deepEqual(data.excludedSites,[]);
     assert.deepEqual((await worker.evaluate(()=>chrome.permissions.getAll())).origins.sort(),['http://*/*','https://*/*']);
     assert.equal(await site.locator('article').innerHTML(),original.html);
     await site.screenshot({path:path.join(artifacts,'extension-fixture.png'),fullPage:true,caret:'initial'});
@@ -139,8 +231,22 @@ try{
   await check('strict page CSP allows automatic cues and reload needs no activation',async()=>{
     await site.goto(base+'/fixture-csp');await waitStatus(s=>s.groups>0&&!s.busy);
     assert.equal(await site.locator('[data-reading-cues-style]').count(),0);
-    assert.ok((await site.locator('#cross').evaluate(el=>getComputedStyle(el,'::highlight(reading-cues-light)').backgroundColor)).includes('0.17'));
+    assert.ok((await site.locator('#cross').evaluate(el=>getComputedStyle(el,'::highlight(reading-cues-light)').backgroundColor)).includes('0.5'));
     await site.reload();await waitStatus(s=>s.groups>0&&!s.busy);
+    await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
+  });
+  await check('mode, custom colors and intensity persist and apply under strict CSP',async()=>{
+    assert.equal(await options.locator('#reading-mode').inputValue(),'words');
+    assert.equal(await options.locator('.palette button').count(),6);
+    await options.locator('#light-color').fill('#ff66cc');await options.locator('#light-color').dispatchEvent('change');
+    await options.locator('#dark-color').fill('#aa77ff');await options.locator('#dark-color').dispatchEvent('change');
+    await options.locator('#intensity').fill('75');await options.locator('#intensity').dispatchEvent('change');
+    await site.goto(base+'/fixture-csp');await waitStatus(s=>s.groups>0&&!s.busy);
+    const style=await site.locator('#cross').evaluate(el=>getComputedStyle(el,'::highlight(reading-cues-light)').backgroundColor);
+    assert.equal(style,'rgba(255, 102, 204, 0.75)');
+    await options.reload();assert.equal(await options.locator('#light-color').inputValue(),'#ff66cc');assert.equal(await options.locator('#intensity').inputValue(),'75');
+    await options.locator('#reading-mode').selectOption('personal');await waitStatus(s=>s.groups===0&&!s.busy);
+    await options.locator('#reading-mode').selectOption('words');await waitStatus(s=>s.groups>0&&!s.busy);
     await site.goto(base+'/fixture');await waitStatus(s=>s.groups>0&&!s.busy);
   });
   await check('per-site pause persists across navigation while other origins stay automatic',async()=>{

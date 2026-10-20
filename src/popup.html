@@ -7,15 +7,17 @@
     <p class="hint">打开网页就自动提示，无需逐站开启。</p>
     <button id="site-toggle" class="primary" disabled>正在准备…</button>
     <p class="status" id="scan-status" aria-live="polite"></p>
-    <fieldset><legend>提示样式</legend><div class="choices">
-      <label class="choice"><input type="radio" name="style" value="background"><span class="preview-mark">浅底色</span></label>
+    <div id="reader-controls" class="stack"></div>
+    <fieldset><legend>标记样式</legend><div class="choices">
+      <label class="choice"><input type="radio" name="style" value="background"><span class="preview-mark">底色</span></label>
       <label class="choice"><input type="radio" name="style" value="underline"><span class="preview-line">下划线</span></label>
     </div></fieldset>
-    <p class="sample">这<span id="sample-cue" class="preview-mark">不一定</span>更快，但可以慢慢试。</p>
-    <details><summary>提示数量与类别</summary><div class="stack">
+    <p class="sample">看清<span id="sample-cue" class="preview-mark">完整词组</span>，按自己的节奏读。</p>
+    <details><summary>颜色与强度</summary><div id="color-controls"></div></details>
+    <details><summary>逻辑提示模式的数量与类别</summary><div class="stack">
       <label class="row" for="density">提示数量<select id="density"><option value="0">自动，随段落长度</option><option value="1">每段最多 1 组</option><option value="2">每段最多 2 组</option><option value="3">每段最多 3 组</option><option value="5">每段最多 5 组</option><option value="8">每段最多 8 组</option></select></label>
       <div id="category-choices" class="stack"></div>
-      <p class="hint">默认自动分配数量，并保留完整表达。</p>
+      <p class="hint">仅用于“逻辑与数值提示”模式。</p>
     </div></details>
     <hr class="divider">
     <label class="hint"><input type="checkbox" id="global-pause">暂停所有网站的提示</label>
